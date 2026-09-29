@@ -1,0 +1,179 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  map.kv  –  Offline tactical map screen
+# ─────────────────────────────────────────────────────────────────────────────
+
+<MapScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.04, 0.055, 0.102, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    FloatLayout:
+
+        # ── Top header ───────────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 52
+            top: root.top
+            x: 0
+            width: root.width
+            padding: [14, 8, 14, 0]
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: 0.06, 0.09, 0.06, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.3
+                Line:
+                    points: [self.x, self.y, self.right, self.y]
+                    width: 1
+
+            Button:
+                text: '◀'
+                size_hint: None, None
+                size: 32, 36
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.1, 0.9, 0.5, 1
+                font_size: '16sp'
+                on_press: root.goto('dashboard')
+
+            Label:
+                text: '🗺  TACTICAL MAP'
+                font_size: '13sp'
+                bold: True
+                color: 0.1, 0.9, 0.5, 1
+                letter_spacing: 3
+                size_hint_x: 0.6
+                halign: 'center'
+                text_size: self.size
+
+            Label:
+                text: 'NODES: [b]{}[/b]'.format(root.node_count)
+                markup: True
+                font_size: '10sp'
+                color: 0.5, 0.8, 0.5, 1
+                size_hint_x: 0.25
+                halign: 'right'
+                text_size: self.size
+
+        # ── Map widget area ───────────────────────────────────────────────────
+        # MapView (kivy-garden.mapview) is added dynamically in Python
+        # This RelativeLayout is the container
+        RelativeLayout:
+            id: map_container
+            size_hint: 1, 1
+            y: 56
+            height: root.height - 56 - 150
+            x: 0
+            canvas.before:
+                Color:
+                    rgba: 0.06, 0.10, 0.07, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            # Fallback label if MapView not available
+            Label:
+                text: '⚠ kivy-garden.mapview not installed\nInstall with:\npip install kivy-garden.mapview'
+                font_size: '12sp'
+                color: 0.4, 0.6, 0.4, 0.8
+                halign: 'center'
+                text_size: self.size
+
+        # ── Node info panel ───────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 1, None
+            height: 114
+            y: 36
+            x: 0
+            width: root.width
+            padding: [14, 6, 14, 6]
+            spacing: 4
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.08, 0.05, 0.95
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.2
+                Line:
+                    points: [self.x, self.top, self.right, self.top]
+                    width: 1
+
+            Label:
+                text: '//  NODE INFO  //'
+                font_size: '9sp'
+                color: 0.3, 0.5, 0.3, 1
+                letter_spacing: 3
+                size_hint_y: None
+                height: 16
+                halign: 'center'
+                text_size: self.size
+
+            Label:
+                text: root.node_info
+                font_size: '11sp'
+                color: 0.8, 0.9, 0.8, 1
+                markup: True
+                size_hint_y: 1
+                halign: 'left'
+                text_size: self.size
+                valign: 'top'
+
+        # ── Bottom nav bar ─────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 36
+            y: 0
+            x: 0
+            width: root.width
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.08, 0.05, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: '📊 DASH'
+                font_size: '9sp'
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.5, 0.7, 0.5, 1
+                on_press: root.goto('dashboard')
+
+            Button:
+                text: '📡 CHAT'
+                font_size: '9sp'
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.5, 0.7, 0.5, 1
+                on_press: root.goto('chat')
+
+            Button:
+                text: '🗺 MAP'
+                font_size: '9sp'
+                bold: True
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.1, 0.9, 0.5, 1
+                on_press: root.goto('map')
+
+            Button:
+                text: '⚙ SETTINGS'
+                font_size: '9sp'
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.5, 0.7, 0.5, 1
+                on_press: root.goto('settings')

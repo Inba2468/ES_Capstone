@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Tactical LoRa Mesh HUD // VANGUARD-01</title>
+<meta name="description" content="Tactical Off-Grid Mesh Network Dashboard — 100% Offline ESP32 BLE Gateway"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface-dim": "#0f131f","surface-container": "#1b1f2c","surface": "#0f131f",
+        "surface-container-low": "#171b28","surface-container-high": "#262a37",
+        "surface-container-highest": "#313442","surface-container-lowest": "#0a0e1a",
+        "surface-bright": "#353946","surface-tint": "#14e37e","surface-variant": "#313442",
+        "primary": "#71ffa3","on-primary": "#00391b","primary-container": "#1ae580",
+        "on-primary-container": "#006132","primary-fixed": "#5eff9d","primary-fixed-dim": "#14e37e",
+        "on-primary-fixed": "#00210d","on-primary-fixed-variant": "#005229",
+        "secondary": "#c3cc8c","on-secondary": "#2d3404","secondary-container": "#434b18",
+        "on-secondary-container": "#b1bb7c","secondary-fixed": "#dfe8a6","secondary-fixed-dim": "#c3cc8c",
+        "on-secondary-fixed": "#191e00","on-secondary-fixed-variant": "#434b18",
+        "tertiary": "#ffdfb3","on-tertiary": "#432c00","tertiary-container": "#ffbc46",
+        "on-tertiary-container": "#714c00","tertiary-fixed": "#ffdeae","tertiary-fixed-dim": "#fdba45",
+        "on-tertiary-fixed": "#281900","on-tertiary-fixed-variant": "#604100",
+        "error": "#ffb4ab","on-error": "#690005","error-container": "#93000a","on-error-container": "#ffdad6",
+        "on-surface": "#dfe2f3","on-surface-variant": "#bacbbb","outline": "#859586","outline-variant": "#3c4a3e",
+        "background": "#0f131f","on-background": "#dfe2f3",
+        "inverse-surface": "#dfe2f3","inverse-on-surface": "#2c303d","inverse-primary": "#006d39",
+      },
+      fontFamily: {
+        "headline-xl": ["Space Grotesk"],"headline-lg": ["Space Grotesk"],
+        "headline-md": ["Space Grotesk"],"headline-xl-mobile": ["Space Grotesk"],
+        "label-lg": ["JetBrains Mono"],"label-md": ["JetBrains Mono"],"label-sm": ["JetBrains Mono"],
+        "body-lg": ["Inter"],"body-md": ["Inter"],"body-sm": ["Inter"],
+      },
+      fontSize: {
+        "headline-xl": ["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],
+        "headline-xl-mobile": ["28px",{lineHeight:"36px",letterSpacing:"-0.01em",fontWeight:"700"}],
+        "headline-lg": ["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],
+        "headline-md": ["18px",{lineHeight:"26px",letterSpacing:"0.02em",fontWeight:"600"}],
+        "body-lg": ["15px",{lineHeight:"22px",fontWeight:"400"}],
+        "body-md": ["13px",{lineHeight:"18px",fontWeight:"400"}],
+        "body-sm": ["11px",{lineHeight:"16px",fontWeight:"400"}],
+        "label-lg": ["13px",{lineHeight:"16px",letterSpacing:"0.06em",fontWeight:"500"}],
+        "label-md": ["11px",{lineHeight:"14px",letterSpacing:"0.08em",fontWeight:"500"}],
+        "label-sm": ["9px",{lineHeight:"12px",letterSpacing:"0.12em",fontWeight:"700"}],
+      },
+      spacing: {
+        "space-xs":"0.25rem","space-sm":"0.5rem","space-md":"1rem","space-lg":"1.5rem","space-xl":"2rem",
+        "gutter":"1rem","gutter-desktop":"1.5rem","margin":"1rem","margin-desktop":"2rem",
+      },
+    }
+  }
+}
+</script>
+<style>
+@layer base {
+  html, body { width:100vw; margin:0; padding:0; background-color:#0f131f; }
+  body { overscroll-behavior:none; }
+  ::-webkit-scrollbar { display:none; }
+  * { scrollbar-width:none; }
+}
+
+/* ── Tab panel transitions ── */
+.tab-panel { display:none; animation: fadeSlide 0.22s ease; }
+.tab-panel.active { display:flex; flex-direction:column; }
+@keyframes fadeSlide { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Gauge SVG ring ── */
+.gauge-ring { transition: stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1); }
+
+/* ── SOS Strobe Overlay ── */
+#sos-overlay { display:none; }
+#sos-overlay.active { display:flex; animation: strobeFlash 0.6s infinite alternate; }
+@keyframes strobeFlash {
+  0%   { background-color: rgba(147, 0, 10, 0.88); }
+  100% { background-color: rgba(26, 4, 6, 0.96); }
+}
+
+/* ── Tactical corner brackets ── */
+.bracket::before, .bracket::after {
+  content:'';position:absolute;width:10px;height:10px;border-color:#1ae580;border-style:solid;opacity:0.6;
+}
+.bracket::before { top:0;left:0;border-width:1.5px 0 0 1.5px; }
+.bracket::after  { bottom:0;right:0;border-width:0 1.5px 1.5px 0; }
+
+/* ── Radar sweep animation ── */
+@keyframes radarSweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.radar-arm { transform-origin:50% 50%; animation: radarSweep 3s linear infinite; }
+
+/* ── Spectrum waveform animation ── */
+@keyframes specWave {
+  0%   { d: path("M 0 88 Q 40 86 70 87 T 130 84 T 170 78 T 195 24 T 205 18 T 225 65 T 260 84 T 330 87 L 400 89"); }
+  50%  { d: path("M 0 86 Q 50 82 75 84 T 125 79 T 165 72 T 192 19 T 208 14 T 230 62 T 265 81 T 335 85 L 400 87"); }
+  100% { d: path("M 0 88 Q 40 86 70 87 T 130 84 T 170 78 T 195 24 T 205 18 T 225 65 T 260 84 T 330 87 L 400 89"); }
+}
+#specPath { animation: specWave 2.5s ease-in-out infinite; }
+
+/* ── Map node pulse ── */
+@keyframes nodePing { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:0.2;transform:scale(2.5)} }
+.node-ping { animation: nodePing 2s ease-in-out infinite; }
+
+/* ── Chat bubble ── */
+.chat-bubble-in  { background:#1b1f2c; border-left:2px solid #71ffa3; }
+.chat-bubble-out { background:#262a37; border-right:2px solid #1ae580; align-self:flex-end; }
+</style>
+</head>
+<body class="bg-surface text-on-surface flex flex-col h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOP STATUS & HARDWARE BAR
+════════════════════════════════════════════════════════════════ -->
+<header class="flex-none z-50 bg-surface-container-lowest border-b border-outline-variant/40 backdrop-blur-xl">
+  <div class="h-14 px-space-md flex items-center justify-between gap-space-sm">
+    <!-- Left: Callsign + title -->
+    <div class="flex items-center gap-space-sm min-w-0">
+      <div class="relative flex-none">
+        <span id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse block"></span>
+      </div>
+      <div class="flex flex-col leading-none min-w-0">
+        <span id="callsign-display" class="font-label-sm text-label-sm text-primary uppercase tracking-widest">VANGUARD-01</span>
+        <span class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight leading-tight">Tactical Mesh HUD</span>
+      </div>
+    </div>
+
+    <!-- Center: Hardware / Mode Controller & Status Chips -->
+    <div class="flex items-center gap-space-xs flex-shrink-0">
+      <!-- Mode & Hardware Switcher -->
+      <div class="flex items-center bg-surface-container-high rounded p-0.5 border border-outline-variant/40">
+        <button id="mode-demo-btn" onclick="toggleDemoMode()"
+          class="flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm font-bold bg-primary-container text-on-primary transition-all">
+          <span class="material-symbols-outlined text-[13px]">smart_toy</span>
+          <span id="demo-btn-label">DEMO MODE</span>
+        </button>
+        <button onclick="openBleModal()"
+          class="flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[13px]">bluetooth_searching</span>
+          <span id="ble-btn-label">PAIR ESP32</span>
+        </button>
+      </div>
+
+      <!-- Live metrics chips -->
+      <div class="hidden md:flex items-center gap-space-xs">
+        <div id="gps-chip" class="flex items-center gap-1 bg-surface-container px-2 py-1 rounded">
+          <span class="material-symbols-outlined text-secondary text-[13px]">satellite_alt</span>
+          <span id="gps-label" class="font-label-sm text-label-sm text-secondary">3D FIX</span>
+        </div>
+        <div class="flex items-center gap-1 bg-surface-container px-2 py-1 rounded">
+          <span class="material-symbols-outlined text-on-surface-variant text-[13px]">router</span>
+          <span id="pkt-label" class="font-label-sm text-label-sm text-on-surface-variant">PKT: 0</span>
+        </div>
+        <div class="flex items-center gap-1 bg-surface-container px-2 py-1 rounded">
+          <span class="font-label-sm text-label-sm text-on-surface-variant">RSSI:</span>
+          <span id="rssi-label" class="font-label-sm text-label-sm text-primary font-bold">--dBm</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Big Global SOS + Clock -->
+    <div class="flex items-center gap-space-sm flex-none">
+      <span id="clock" class="font-label-sm text-label-sm text-on-surface-variant hidden sm:block">00:00:00</span>
+      <button id="sos-btn" onclick="triggerSOS()" class="flex items-center gap-1 bg-error-container hover:bg-error/30 text-on-error-container font-label-lg text-label-lg px-3 py-1.5 rounded transition-all active:scale-95 border border-error/40 animate-pulse">
+        <span class="material-symbols-outlined text-[15px]" style="font-variation-settings:'FILL' 1">emergency</span>
+        SOS
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN SCROLLABLE CONTENT
+════════════════════════════════════════════════════════════════ -->
+<main class="flex-1 overflow-y-auto pb-20">
+
+  <!-- ── DASHBOARD tab ──────────────────────────────────────── -->
+  <div id="tab-dashboard" class="tab-panel active px-space-md py-space-sm gap-space-md">
+
+    <!-- RF Sync & Hardware Status Banner -->
+    <div class="w-full bg-surface-container-low rounded-lg p-space-sm flex flex-col gap-space-xs shadow-md bracket relative">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-xs">
+          <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+          <span id="mesh-status-text" class="font-label-sm text-label-sm text-primary uppercase tracking-widest">RF SYNC ESTABLISHED</span>
+        </div>
+        <div class="flex items-center gap-1 bg-surface-container-highest px-space-xs py-0.5 rounded">
+          <span class="material-symbols-outlined text-[12px] text-primary">router</span>
+          <span id="radio-mode-tag" class="font-label-sm text-label-sm text-on-surface-variant">LORA SF7 / 433 MHz</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-baseline justify-between gap-space-xs bg-surface-container-lowest p-space-xs rounded font-label-md text-label-md text-on-surface">
+        <div class="flex items-center gap-1">
+          <span class="text-on-surface-variant">GATEWAY:</span>
+          <span id="gateway-name" class="text-primary font-bold tracking-tight">ESP32-GATEWAY-01</span>
+        </div>
+        <div class="flex items-center gap-space-sm text-on-surface-variant font-label-sm text-label-sm">
+          <span>HOP: <strong class="text-secondary font-bold">2</strong></span>
+          <span>RSSI: <strong id="dash-rssi" class="text-primary">-82dBm</strong></span>
+          <span id="last-seen" class="text-primary">0s AGO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Action Bar: Big SOS + Shelter Broadcast -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+      <button onclick="triggerSOS()" class="bg-error-container/90 hover:bg-error text-on-error-container p-space-sm rounded-lg flex items-center justify-between border border-error shadow-lg transition-all active:scale-[0.98]">
+        <div class="flex items-center gap-space-sm">
+          <span class="material-symbols-outlined text-[28px] animate-bounce" style="font-variation-settings:'FILL' 1">emergency</span>
+          <div class="text-left">
+            <span class="block font-headline-md text-headline-md font-bold tracking-wide">BROADCAST SOS</span>
+            <span id="sos-coord-preview" class="block font-label-sm text-label-sm opacity-80">SEND LIVE GPS COORDS</span>
+          </div>
+        </div>
+        <span class="font-label-sm bg-black/40 px-2 py-1 rounded text-white font-bold">STROBE ON</span>
+      </button>
+
+      <button onclick="broadcastShelter()" class="bg-secondary-container/90 hover:bg-secondary-container text-on-secondary-container p-space-sm rounded-lg flex items-center justify-between border border-secondary shadow-lg transition-all active:scale-[0.98]">
+        <div class="flex items-center gap-space-sm">
+          <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">fort</span>
+          <div class="text-left">
+            <span class="block font-headline-md text-headline-md font-bold tracking-wide">BROADCAST SHELTER</span>
+            <span class="block font-label-sm text-label-sm opacity-80">DEPLOY SAFE HAVEN BEACON</span>
+          </div>
+        </div>
+        <span class="font-label-sm bg-black/40 px-2 py-1 rounded text-secondary-fixed font-bold">WAYPOINT</span>
+      </button>
+    </div>
+
+    <!-- Circular Radial Sensor Gauges -->
+    <div class="flex flex-col bg-surface-container-low rounded-lg p-space-md shadow-md gap-space-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Environmental Telemetry</span>
+        <span class="font-label-sm text-label-sm text-primary font-bold">SENSORS ONLINE</span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm">
+        <!-- Temperature -->
+        <div class="bg-surface-container rounded-lg p-space-sm flex flex-col items-center gap-1 shadow-sm">
+          <span class="font-label-sm text-label-sm text-on-surface-variant">TEMP</span>
+          <div class="relative w-20 h-20 flex items-center justify-center">
+            <svg class="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#262a37" stroke-width="8"/>
+              <circle id="gauge-temp" class="gauge-ring" cx="50" cy="50" r="40" fill="none" stroke="#71ffa3" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="150" stroke-linecap="round"/>
+            </svg>
+            <div class="absolute flex flex-col items-center leading-none">
+              <span id="val-temp" class="font-label-lg text-label-lg font-bold text-on-surface">28.0</span>
+              <span class="text-[9px] font-label-sm text-on-surface-variant">°C</span>
+            </div>
+          </div>
+          <span class="font-label-sm text-label-sm text-primary">NORMAL</span>
+        </div>
+
+        <!-- Humidity -->
+        <div class="bg-surface-container rounded-lg p-space-sm flex flex-col items-center gap-1 shadow-sm">
+          <span class="font-label-sm text-label-sm text-on-surface-variant">HUMIDITY</span>
+          <div class="relative w-20 h-20 flex items-center justify-center">
+            <svg class="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#262a37" stroke-width="8"/>
+              <circle id="gauge-hum" class="gauge-ring" cx="50" cy="50" r="40" fill="none" stroke="#c3cc8c" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="88" stroke-linecap="round"/>
+            </svg>
+            <div class="absolute flex flex-col items-center leading-none">
+              <span id="val-hum" class="font-label-lg text-label-lg font-bold text-on-surface">65.0</span>
+              <span class="text-[9px] font-label-sm text-on-surface-variant">%</span>
+            </div>
+          </div>
+          <span class="font-label-sm text-label-sm text-secondary">OPTIMAL</span>
+        </div>
+
+        <!-- Smoke PPM -->
+        <div class="bg-surface-container rounded-lg p-space-sm flex flex-col items-center gap-1 shadow-sm">
+          <span class="font-label-sm text-label-sm text-on-surface-variant">SMOKE (MQ-2)</span>
+          <div class="relative w-20 h-20 flex items-center justify-center">
+            <svg class="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#262a37" stroke-width="8"/>
+              <circle id="gauge-smoke" class="gauge-ring" cx="50" cy="50" r="40" fill="none" stroke="#ffbc46" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="210" stroke-linecap="round"/>
+            </svg>
+            <div class="absolute flex flex-col items-center leading-none">
+              <span id="val-smoke" class="font-label-lg text-label-lg font-bold text-on-surface">240</span>
+              <span class="text-[9px] font-label-sm text-on-surface-variant">PPM</span>
+            </div>
+          </div>
+          <span id="badge-smoke" class="font-label-sm text-label-sm text-tertiary">CLEAR</span>
+        </div>
+
+        <!-- Water Level -->
+        <div class="bg-surface-container rounded-lg p-space-sm flex flex-col items-center gap-1 shadow-sm">
+          <span class="font-label-sm text-label-sm text-on-surface-variant">WATER LEVEL</span>
+          <div class="relative w-20 h-20 flex items-center justify-center">
+            <svg class="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#262a37" stroke-width="8"/>
+              <circle id="gauge-water" class="gauge-ring" cx="50" cy="50" r="40" fill="none" stroke="#71ffa3" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="125" stroke-linecap="round"/>
+            </svg>
+            <div class="absolute flex flex-col items-center leading-none">
+              <span id="val-water" class="font-label-lg text-label-lg font-bold text-on-surface">520</span>
+              <span class="text-[9px] font-label-sm text-on-surface-variant">ADC</span>
+            </div>
+          </div>
+          <span id="badge-water" class="font-label-sm text-label-sm text-primary">SAFE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GPS Coordinate Card -->
+    <div class="bg-surface-container-low rounded-lg p-space-md shadow-md flex items-center justify-between">
+      <div class="flex items-center gap-space-sm">
+        <span class="material-symbols-outlined text-secondary text-[24px]">location_searching</span>
+        <div>
+          <span class="block font-label-sm text-label-sm text-on-surface-variant uppercase">LOCAL GPS TELEMETRY</span>
+          <div class="flex items-center gap-space-sm font-label-lg text-label-lg font-bold text-on-surface">
+            <span>LAT: <span id="val-lat" class="text-primary">13.08270°N</span></span>
+            <span>LNG: <span id="val-lng" class="text-secondary">80.27070°E</span></span>
+          </div>
+        </div>
+      </div>
+      <button onclick="switchTab('map')" class="bg-surface-container-high hover:bg-surface-bright px-3 py-1.5 rounded font-label-sm text-label-sm text-primary transition-all">
+        VIEW MAP
+      </button>
+    </div>
+  </div>
+
+  <!-- ── MESH CHAT tab ──────────────────────────────────────── -->
+  <div id="tab-chat" class="tab-panel px-space-md py-space-sm gap-space-md">
+
+    <!-- 🚨 BIG PROMINENT SOS BUTTON IN CHAT -->
+    <div class="w-full bg-error-container/80 border-2 border-error rounded-xl p-space-sm shadow-xl flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+      <div class="flex items-center gap-space-sm">
+        <div class="w-10 h-10 rounded-full bg-error flex items-center justify-center text-on-error animate-pulse flex-shrink-0">
+          <span class="material-symbols-outlined text-[24px]" style="font-variation-settings:'FILL' 1">emergency</span>
+        </div>
+        <div>
+          <span class="block font-headline-md text-headline-md font-bold text-white tracking-wider">EMERGENCY SOS OVERRIDE</span>
+          <span class="block font-label-sm text-label-sm text-on-error-container">
+            TARGET GPS: <span id="chat-sos-gps" class="text-white font-bold">13.08270°N, 80.27070°E</span>
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-space-xs w-full sm:w-auto">
+        <button onclick="triggerSOS()" class="flex-1 sm:flex-none bg-error text-white font-label-lg font-bold px-4 py-2.5 rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px]">campaign</span>
+          BROADCAST SOS
+        </button>
+        <button onclick="broadcastShelter()" class="flex-1 sm:flex-none bg-surface-container-highest text-secondary font-label-sm font-bold px-3 py-2.5 rounded-lg hover:text-white transition-all flex items-center justify-center gap-1 border border-secondary/50">
+          <span class="material-symbols-outlined text-[16px]">fort</span>
+          SHELTER
+        </button>
+      </div>
+    </div>
+
+    <!-- Header info ribbon -->
+    <div class="bg-surface-container-high rounded-lg p-space-sm flex items-center justify-between shadow-md">
+      <div class="flex items-center gap-space-xs">
+        <span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        <span class="font-label-sm text-label-sm text-primary tracking-widest uppercase">DECENTRALIZED ENCRYPTED LORA BUFFER</span>
+      </div>
+      <span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-lowest px-space-xs py-0.5 rounded">
+        CALLSIGN: <strong id="chat-callsign" class="text-primary">OPERATOR-1</strong>
+      </span>
+    </div>
+
+    <!-- Message stream -->
+    <div class="bg-surface-container-lowest rounded-xl p-space-sm shadow-xl flex flex-col gap-space-sm flex-1">
+      <div id="chat-messages" class="flex flex-col gap-space-sm overflow-y-auto max-h-[48vh] pr-1 min-h-[160px]">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Quick tactical preset buttons -->
+      <div class="flex flex-wrap gap-space-xs pt-space-xs border-t border-outline-variant/30">
+        <button onclick="quickReply('SECTOR 4 CLEAR. ALL UNITS ADVANCE.')" class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded hover:text-primary hover:border-primary border border-outline-variant/40 transition-colors">SECTOR CLEAR</button>
+        <button onclick="quickReply('REQUESTING IMMEDIATE STATUS UPDATE.')" class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded hover:text-primary hover:border-primary border border-outline-variant/40 transition-colors">STATUS UPDATE</button>
+        <button onclick="quickReply('COPY THAT. ACKNOWLEDGED.')" class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded hover:text-primary hover:border-primary border border-outline-variant/40 transition-colors">ACKNOWLEDGE</button>
+        <button onclick="quickReply('ROUTE COMPROMISED. FALL BACK TO SHELTER.')" class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded hover:text-primary hover:border-primary border border-outline-variant/40 transition-colors">FALL BACK</button>
+      </div>
+
+      <!-- Input box -->
+      <div class="flex gap-space-xs items-end pt-space-xs">
+        <textarea id="chat-input" rows="2"
+          class="flex-1 bg-surface-container-low border border-outline-variant/40 focus:border-primary text-on-surface font-label-md text-label-md rounded p-space-sm resize-none outline-none placeholder-on-surface-variant/50 transition-colors"
+          placeholder="TRANSMIT PEER-TO-PEER LORA MESSAGE..."></textarea>
+        <button onclick="sendChat()" id="send-btn"
+          class="bg-primary-container text-on-primary font-label-lg text-label-lg px-4 py-3 rounded-lg hover:bg-primary transition-colors active:scale-95 flex items-center gap-1 shadow-md">
+          <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">send</span>
+          TX
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TACTICAL MAP tab ───────────────────────────────────── -->
+  <div id="tab-map" class="tab-panel px-space-md py-space-sm gap-space-md">
+    
+    <!-- Map Control Ribbon -->
+    <div class="flex items-center justify-between bg-surface-container-low px-space-md py-space-xs rounded shadow-sm">
+      <div class="flex items-center gap-space-sm">
+        <span class="material-symbols-outlined text-primary text-[18px]">map</span>
+        <span class="font-label-sm text-label-sm text-primary uppercase font-bold">OFFLINE TACTICAL MAP & WAYPOINTS</span>
+      </div>
+      <button onclick="broadcastShelter()" class="flex items-center gap-1 bg-secondary-container hover:bg-secondary text-on-secondary px-2.5 py-1 rounded font-label-sm text-label-sm transition-all">
+        <span class="material-symbols-outlined text-[14px]">add_location</span>
+        ADD SHELTER BEACON
+      </button>
+    </div>
+
+    <!-- Map Radar Display -->
+    <div class="relative w-full aspect-video sm:aspect-[2/1] bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/50 shadow-2xl flex items-center justify-center">
+      <!-- Radar grid circles -->
+      <div class="absolute w-[80%] aspect-square rounded-full border border-primary/20 pointer-events-none"></div>
+      <div class="absolute w-[55%] aspect-square rounded-full border border-primary/25 pointer-events-none"></div>
+      <div class="absolute w-[30%] aspect-square rounded-full border border-primary/30 pointer-events-none"></div>
+      <div class="absolute w-full h-px bg-primary/20 pointer-events-none"></div>
+      <div class="absolute h-full w-px bg-primary/20 pointer-events-none"></div>
+
+      <!-- Radar sweep arm -->
+      <div class="absolute w-full h-full radar-arm pointer-events-none">
+        <div class="w-1/2 h-1/2 origin-bottom-right bg-gradient-to-tr from-primary/10 to-transparent"></div>
+      </div>
+
+      <!-- Map Markers -->
+      <div class="relative w-full h-full p-6 flex flex-col justify-between z-10 pointer-events-none">
+        <!-- Self / Gateway -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+          <div class="relative flex items-center justify-center">
+            <span class="absolute w-6 h-6 rounded-full bg-primary/30 node-ping"></span>
+            <span class="w-3.5 h-3.5 rounded-full bg-primary border-2 border-surface-container-lowest block"></span>
+          </div>
+          <span class="font-label-sm text-label-sm text-primary font-bold mt-1 bg-surface-container-lowest/80 px-1 rounded">HQ (ME)</span>
+        </div>
+
+        <!-- Node 1 -->
+        <div class="absolute top-[32%] left-[42%] flex flex-col items-center">
+          <span class="w-2.5 h-2.5 rounded-full bg-secondary block"></span>
+          <span class="font-label-sm text-[8px] text-secondary font-bold bg-surface-container-lowest/80 px-1 rounded">NODE-1</span>
+        </div>
+
+        <!-- Node 2 -->
+        <div class="absolute top-[65%] left-[62%] flex flex-col items-center">
+          <span class="w-2.5 h-2.5 rounded-full bg-secondary block"></span>
+          <span class="font-label-sm text-[8px] text-secondary font-bold bg-surface-container-lowest/80 px-1 rounded">NODE-2</span>
+        </div>
+
+        <!-- Node 3 (SOS Node) -->
+        <div id="map-sos-node" class="absolute top-[40%] left-[70%] flex flex-col items-center">
+          <div class="relative flex items-center justify-center">
+            <span class="absolute w-5 h-5 rounded-full bg-error/40 animate-ping"></span>
+            <span class="w-3 h-3 rounded-full bg-error block"></span>
+          </div>
+          <span class="font-label-sm text-[8px] text-error font-bold bg-surface-container-lowest/80 px-1 rounded">NODE-3 (ALERT)</span>
+        </div>
+
+        <!-- Dynamic Shelter Marker -->
+        <div id="map-shelter-marker" class="absolute top-[25%] left-[65%] flex flex-col items-center">
+          <span class="material-symbols-outlined text-secondary-fixed text-[18px] bg-secondary-container rounded-full p-0.5 shadow-md">fort</span>
+          <span id="map-shelter-name" class="font-label-sm text-[9px] text-secondary-fixed font-bold bg-surface-container-lowest/90 px-1 rounded">SAFE SHELTER A</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Waypoints & Shelters List -->
+    <div class="bg-surface-container-low rounded-lg p-space-sm shadow-md flex flex-col gap-space-xs">
+      <span class="font-label-sm text-label-sm text-on-surface-variant uppercase">TACTICAL WAYPOINTS & SHELTERS</span>
+      <div id="waypoints-list" class="grid grid-cols-1 sm:grid-cols-2 gap-space-xs font-label-md text-label-md">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NODES TRIAGE tab ───────────────────────────────────── -->
+  <div id="tab-nodes" class="tab-panel px-space-md py-space-sm gap-space-md">
+    <div class="flex items-center justify-between bg-surface-container-low px-space-md py-space-xs rounded shadow-sm">
+      <span class="font-label-sm text-label-sm text-on-surface-variant uppercase">ACTIVE MESH PARTICIPANTS & TRIAGE</span>
+      <span id="node-count-badge" class="font-label-sm text-label-sm text-primary font-bold">4 NODES LIVE</span>
+    </div>
+
+    <div id="nodes-grid" class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- ── TERMINAL PACKET SNIFFER tab ────────────────────────── -->
+  <div id="tab-terminal" class="tab-panel px-space-md py-space-sm gap-space-md">
+    <div class="flex items-center justify-between bg-surface-container-low px-space-md py-space-xs rounded shadow-sm">
+      <div class="flex items-center gap-space-xs">
+        <span class="material-symbols-outlined text-primary text-[16px]">data_object</span>
+        <span class="font-label-sm text-label-sm text-primary uppercase">RAW LORA PACKET STREAM // PERSISTENCE LOG</span>
+      </div>
+      <button onclick="clearTerminal()" class="font-label-sm text-label-sm text-on-surface-variant hover:text-error">CLEAR</button>
+    </div>
+
+    <div id="terminal-log" class="bg-surface-container-lowest rounded-xl p-space-sm font-label-sm text-label-sm text-primary/90 font-mono overflow-y-auto max-h-[60vh] h-[50vh] flex flex-col gap-1 shadow-inner border border-outline-variant/30">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- ── SPECTRUM MONITOR tab ───────────────────────────────── -->
+  <div id="tab-spectrum" class="tab-panel px-space-md py-space-sm gap-space-md">
+    <div class="flex items-center justify-between bg-surface-container-low px-space-md py-space-xs rounded shadow-sm">
+      <div class="flex items-center gap-space-xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+        <span class="font-label-sm text-label-sm text-primary uppercase">BAND: 433.000 MHz ISM</span>
+      </div>
+      <div class="flex items-center gap-space-sm text-on-surface-variant">
+        <span class="font-label-sm text-label-sm">BW: 125kHz</span>
+        <span class="font-label-sm text-label-sm text-secondary">SF7 / CR 4:5</span>
+      </div>
+    </div>
+
+    <!-- Waterfall Spectrogram -->
+    <div class="flex flex-col bg-surface-container-low rounded-lg p-space-md shadow-md gap-space-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-lg text-label-lg text-on-surface uppercase tracking-wider">RF WATERFALL PLOT</span>
+        <span id="peak-rssi" class="font-label-sm text-label-sm text-primary-fixed bg-surface-container-highest px-2 py-0.5 rounded">PEAK -78 dBm</span>
+      </div>
+      <div id="waterfall" class="bg-surface-container-lowest rounded p-2 flex flex-col gap-1 min-h-[140px]">
+        <!-- Dynamic rows by JS -->
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BOTTOM NAVIGATION BAR
+════════════════════════════════════════════════════════════════ -->
+<nav class="fixed bottom-0 inset-x-0 bg-surface-container-lowest border-t border-outline-variant/40 z-40 backdrop-blur-xl">
+  <div class="max-w-4xl mx-auto flex items-center justify-around h-16 px-space-xs">
+    <button id="nav-dashboard" onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-primary border-t-2 border-primary transition-colors">
+      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1">dashboard</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">HUD</span>
+    </button>
+    <button id="nav-chat" onclick="switchTab('chat')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant border-t-2 border-transparent relative transition-colors">
+      <span class="material-symbols-outlined text-[20px]">chat</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">COMM</span>
+      <span id="chat-badge" class="hidden absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-error animate-ping"></span>
+    </button>
+    <button id="nav-map" onclick="switchTab('map')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant border-t-2 border-transparent transition-colors">
+      <span class="material-symbols-outlined text-[20px]">explore</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">MAP</span>
+    </button>
+    <button id="nav-nodes" onclick="switchTab('nodes')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant border-t-2 border-transparent transition-colors">
+      <span class="material-symbols-outlined text-[20px]">hub</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">NODES</span>
+    </button>
+    <button id="nav-terminal" onclick="switchTab('terminal')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant border-t-2 border-transparent transition-colors">
+      <span class="material-symbols-outlined text-[20px]">terminal</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">SNIFFER</span>
+    </button>
+    <button id="nav-spectrum" onclick="switchTab('spectrum')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1 text-on-surface-variant border-t-2 border-transparent transition-colors">
+      <span class="material-symbols-outlined text-[20px]">equalizer</span>
+      <span class="font-label-sm text-[9px] uppercase tracking-wider">SPECTRUM</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FULL-SCREEN STROBE SOS MODAL
+════════════════════════════════════════════════════════════════ -->
+<div id="sos-overlay" class="fixed inset-0 z-50 flex-col items-center justify-center p-6 text-center">
+  <div class="bg-surface-container-lowest/95 border-2 border-error rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center gap-4">
+    <div class="w-16 h-16 rounded-full bg-error flex items-center justify-center text-white animate-ping">
+      <span class="material-symbols-outlined text-[36px]" style="font-variation-settings:'FILL' 1">emergency</span>
+    </div>
+    <span class="font-headline-xl text-headline-xl text-error font-extrabold uppercase tracking-widest">EMERGENCY SOS ALERT</span>
+    <span id="sos-sender" class="font-label-lg text-label-lg text-white font-bold bg-error-container px-3 py-1 rounded">FROM: NODE-3</span>
+    
+    <div class="bg-surface-container p-4 rounded-xl w-full flex justify-around font-label-md text-label-md">
+      <div>
+        <span class="block text-on-surface-variant text-[10px]">LATITUDE</span>
+        <span id="sos-lat" class="text-primary font-bold">13.08103</span>
+      </div>
+      <div>
+        <span class="block text-on-surface-variant text-[10px]">LONGITUDE</span>
+        <span id="sos-lng" class="text-secondary font-bold">80.27417</span>
+      </div>
+    </div>
+
+    <div class="flex gap-3 w-full mt-2">
+      <button onclick="dismissSOS()" class="flex-1 bg-surface-container-high hover:bg-surface-bright text-white font-label-lg py-3 rounded-xl transition-all">
+        DISMISS ALERT
+      </button>
+      <button onclick="switchTab('map'); dismissSOS()" class="flex-1 bg-error hover:bg-error/80 text-white font-label-lg py-3 rounded-xl transition-all font-bold">
+        LOCATE ON MAP
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BLE SCANNER & ESP32 PAIRING MODAL
+════════════════════════════════════════════════════════════════ -->
+<div id="ble-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex-col items-center justify-center p-4">
+  <div class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6 max-w-lg w-full shadow-2xl flex flex-col gap-4">
+    <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[24px]">bluetooth_searching</span>
+        <span class="font-headline-md text-headline-md font-bold text-on-surface">ESP32 BLE HARDWARE PAIRING</span>
+      </div>
+      <button onclick="closeBleModal()" class="text-on-surface-variant hover:text-white">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <p class="font-body-md text-body-md text-on-surface-variant">
+      Scan and connect directly to your ESP32 LoRa Gateway over Bluetooth LE. Make sure your ESP32 is powered on and advertising Nordic UART Service (NUS).
+    </p>
+
+    <!-- Scan controls -->
+    <div class="flex gap-2">
+      <button id="scan-ble-btn" onclick="startBleScan()" class="flex-1 bg-primary-container text-on-primary font-label-md font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-primary transition-all">
+        <span class="material-symbols-outlined text-[18px]">search</span>
+        SCAN BLE PERIPHERALS
+      </button>
+      <button onclick="connectWebBluetooth()" class="bg-surface-container-high text-secondary hover:text-white font-label-md font-bold px-3 py-2.5 rounded-lg transition-all border border-secondary/40">
+        WEB BLE
+      </button>
+    </div>
+
+    <!-- Device list -->
+    <div id="ble-device-list" class="flex flex-col gap-2 max-h-48 overflow-y-auto bg-surface-container-lowest p-2 rounded-xl border border-outline-variant/30">
+      <span class="text-center font-label-sm text-on-surface-variant py-4">Click "SCAN BLE PERIPHERALS" to search for nearby ESP32 nodes...</span>
+    </div>
+
+    <div class="flex justify-between items-center pt-2 border-t border-outline-variant/30">
+      <span id="ble-modal-status" class="font-label-sm text-on-surface-variant">Status: Ready</span>
+      <button onclick="disconnectHardwareBle()" class="font-label-sm text-error hover:underline">Disconnect Active BLE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="fixed top-16 right-4 z-50 bg-surface-container-high border border-primary/50 text-on-surface px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 opacity-0 -translate-y-2.5 transition-all duration-300 pointer-events-none">
+  <span class="material-symbols-outlined text-primary text-[18px]">info</span>
+  <span id="toast-text" class="font-label-md text-label-md">NOTIFICATION</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CLIENT JAVASCRIPT
+════════════════════════════════════════════════════════════════ -->
+<script>
+let ws = null;
+let currentTab = 'dashboard';
+let chatUnread = 0;
+let pktCount = 0;
+let lastUpdate = Date.now();
+let currentMode = 'DEMO';
+let localTelemetry = { lat: 13.0827, lng: 80.2707, temp: 28.0, hum: 65.0, smoke: 240, water: 520 };
+const waterfallRows = [];
+const MAX_WATERFALL = 20;
+
+// ── Clock ──────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toTimeString().slice(0, 8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Tab switching ──────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('text-primary','border-primary');
+    b.classList.add('text-on-surface-variant','border-transparent');
+  });
+
+  const target = document.getElementById('tab-' + tab);
+  if (target) target.classList.add('active');
+  const navBtn = document.getElementById('nav-' + tab);
+  if (navBtn) {
+    navBtn.classList.remove('text-on-surface-variant','border-transparent');
+    navBtn.classList.add('text-primary','border-primary');
+  }
+
+  currentTab = tab;
+  if (tab === 'chat') {
+    chatUnread = 0;
+    document.getElementById('chat-badge').classList.add('hidden');
+    scrollChatToBottom();
+  }
+}
+
+// ── WebSocket Connection ───────────────────────────────────────
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    setConnStatus(true);
+    showToast('TACTICAL GATEWAY CONNECTED');
+  };
+
+  ws.onclose = () => {
+    setConnStatus(false);
+    setTimeout(connect, 3000);
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      handleMessage(data);
+    } catch(err) {
+      console.error(err);
+    }
+  };
+}
+
+function setConnStatus(connected) {
+  const dot = document.getElementById('conn-dot');
+  if (connected) {
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse block';
+  } else {
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-error block';
+  }
+}
+
+function handleMessage(data) {
+  if (data.raw) {
+    appendTerminal(data.raw);
+  }
+
+  if (data.type === 'state') {
+    if (data.mode) setModeUI(data.mode, data.ble_status);
+    if (data.telemetry) updateSensors(data.telemetry, data.rssi || -82, data.snr || 9.4);
+    if (data.messages) {
+      document.getElementById('chat-messages').innerHTML = '';
+      data.messages.forEach(m => addChatMessage(m, false));
+      scrollChatToBottom();
+    }
+    if (data.callsign) {
+      document.getElementById('callsign-display').textContent = data.callsign;
+      document.getElementById('chat-callsign').textContent = data.callsign;
+    }
+    if (data.pkt_count) {
+      pktCount = data.pkt_count;
+      document.getElementById('pkt-label').textContent = 'PKT: ' + pktCount;
+    }
+    if (data.nodes) updateNodes(data.nodes);
+    if (data.waypoints) updateWaypoints(data.waypoints);
+    return;
+  }
+
+  if (data.type === 'sys') {
+    lastUpdate = Date.now();
+    pktCount = data.pkt_count || pktCount + 1;
+    updateSensors(data.telemetry, data.rssi, data.snr);
+    document.getElementById('pkt-label').textContent = 'PKT: ' + pktCount;
+    if (data.nodes) updateNodes(data.nodes);
+    addWaterfallRow(data.rssi || -82);
+    return;
+  }
+
+  if (data.type === 'chat') {
+    addChatMessage(data.message, true);
+    if (currentTab !== 'chat') {
+      chatUnread++;
+      document.getElementById('chat-badge').classList.remove('hidden');
+    }
+    showToast('COMM: ' + data.message.sender);
+    return;
+  }
+
+  if (data.type === 'sos') {
+    showSOS(data);
+    return;
+  }
+
+  if (data.type === 'sos_dismiss') {
+    document.getElementById('sos-overlay').classList.remove('active');
+    return;
+  }
+
+  if (data.type === 'waypoint') {
+    if (data.waypoints) updateWaypoints(data.waypoints);
+    if (data.chat_message) addChatMessage(data.chat_message, true);
+    showToast('🛡️ SHELTER BEACON DEPLOYED');
+    return;
+  }
+
+  if (data.type === 'mode_change' || data.type === 'ble_status') {
+    setModeUI(data.mode || currentMode, data.status || data.ble_status);
+    return;
+  }
+
+  if (data.type === 'ble_scan_results') {
+    renderBleDevices(data.devices || []);
+    return;
+  }
+
+  if (data.type === 'ble_scan_error') {
+    document.getElementById('ble-modal-status').textContent = 'Scan error: ' + data.error;
+    return;
+  }
+}
+
+// ── Mode Switcher & BLE Pair ──────────────────────────────────
+function setModeUI(mode, status) {
+  currentMode = mode;
+  const demoBtn = document.getElementById('mode-demo-btn');
+  const demoLabel = document.getElementById('demo-btn-label');
+  const bleLabel = document.getElementById('ble-btn-label');
+
+  if (mode === 'DEMO') {
+    demoBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm font-bold bg-primary-container text-on-primary transition-all';
+    demoLabel.textContent = 'DEMO ACTIVE';
+    bleLabel.textContent = 'PAIR ESP32';
+    document.getElementById('radio-mode-tag').textContent = 'SIMULATED LORA SF7';
+  } else {
+    demoBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-primary transition-all';
+    demoLabel.textContent = 'START DEMO';
+    bleLabel.textContent = status || 'ESP32 BLE CONNECTED';
+    document.getElementById('radio-mode-tag').textContent = 'PHYSICAL ESP32 BLE';
+  }
+}
+
+function toggleDemoMode() {
+  if (currentMode === 'DEMO') {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'stop_demo' }));
+      showToast('DEMO STOPPED. Ready for ESP32 connection.');
+    }
+  } else {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'start_demo' }));
+      showToast('DEMO MODE ACTIVATED');
+    }
+  }
+}
+
+function openBleModal() {
+  document.getElementById('ble-modal').classList.remove('hidden');
+  document.getElementById('ble-modal').classList.add('flex');
+}
+
+function closeBleModal() {
+  document.getElementById('ble-modal').classList.add('hidden');
+  document.getElementById('ble-modal').classList.remove('flex');
+}
+
+function startBleScan() {
+  document.getElementById('ble-modal-status').textContent = 'Scanning for BLE devices...';
+  document.getElementById('ble-device-list').innerHTML = '<span class="text-center font-label-sm text-primary py-4 animate-pulse">Scanning nearby BLE hardware...</span>';
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'scan_ble' }));
+  }
+}
+
+function renderBleDevices(devices) {
+  const list = document.getElementById('ble-device-list');
+  if (!devices || devices.length === 0) {
+    list.innerHTML = '<span class="text-center font-label-sm text-on-surface-variant py-4">No BLE devices found nearby. Ensure ESP32 is powered on.</span>';
+    document.getElementById('ble-modal-status').textContent = 'Scan complete (0 found)';
+    return;
+  }
+
+  let html = '';
+  devices.forEach(d => {
+    const isESP = d.name.toLowerCase().includes('esp') || d.name.toLowerCase().includes('lora');
+    html += `
+      <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors">
+        <div>
+          <span class="block font-label-md font-bold text-on-surface ${isESP ? 'text-primary' : ''}">${escapeHtml(d.name)}</span>
+          <span class="block font-label-sm text-on-surface-variant text-[10px]">${escapeHtml(d.address)} | RSSI: ${d.rssi || '--'} dBm</span>
+        </div>
+        <button onclick="connectBleDevice('${escapeHtml(d.address)}', '${escapeHtml(d.name)}')"
+          class="bg-primary-container hover:bg-primary text-on-primary font-label-sm font-bold px-3 py-1.5 rounded transition-all">
+          CONNECT
+        </button>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+  document.getElementById('ble-modal-status').textContent = `Found ${devices.length} device(s)`;
+}
+
+function connectBleDevice(address, name) {
+  document.getElementById('ble-modal-status').textContent = `Connecting to ${name}...`;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'connect_ble', address: address, name: name }));
+  }
+  closeBleModal();
+  showToast(`CONNECTING TO ${name}...`);
+}
+
+function disconnectHardwareBle() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'disconnect_ble' }));
+    showToast('BLE DISCONNECTED');
+  }
+}
+
+// ── Web Bluetooth Direct Fallback ──────────────────────────────
+async function connectWebBluetooth() {
+  if (!navigator.bluetooth) {
+    alert('Web Bluetooth is only supported in Chrome/Edge over HTTPS or localhost.');
+    return;
+  }
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+    });
+    showToast(`WEB BLE CONNECTED: ${device.name}`);
+    closeBleModal();
+  } catch(err) {
+    alert('BLE Selection cancelled or failed: ' + err);
+  }
+}
+
+// ── Telemetry & Gauges ─────────────────────────────────────────
+function updateSensors(t, rssi, snr) {
+  if (!t) return;
+  localTelemetry = { ...localTelemetry, ...t };
+
+  const tempPct  = Math.min(Math.max((t.temp - 20) / 40, 0), 1);
+  const humPct   = Math.min(Math.max(t.hum / 100, 0), 1);
+  const smokePct = Math.min(Math.max(t.smoke / 4095, 0), 1);
+  const waterPct = Math.min(Math.max(t.water / 1023, 0), 1);
+
+  setGauge('gauge-temp',  tempPct);
+  setGauge('gauge-hum',   humPct);
+  setGauge('gauge-smoke', smokePct);
+  setGauge('gauge-water', waterPct);
+
+  setText('val-temp',  t.temp.toFixed(1));
+  setText('val-hum',   t.hum.toFixed(1));
+  setText('val-smoke', Math.round(t.smoke));
+  setText('val-water', Math.round(t.water));
+  
+  const latStr = t.lat.toFixed(5) + '°N';
+  const lngStr = t.lng.toFixed(5) + '°E';
+  setText('val-lat', latStr);
+  setText('val-lng', lngStr);
+  
+  const coordFull = `${latStr}, ${lngStr}`;
+  setText('sos-coord-preview', coordFull);
+  setText('chat-sos-gps', coordFull);
+
+  if (rssi !== undefined) {
+    setText('dash-rssi', rssi + 'dBm');
+    setText('rssi-label', rssi + 'dBm');
+  }
+}
+
+function setGauge(id, pct) {
+  const el = document.getElementById(id);
+  if (el) el.style.strokeDashoffset = 251.2 * (1 - pct);
+}
+
+function setText(id, txt) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = txt;
+}
+
+// ── SOS Broadcast & Strobe Alert ───────────────────────────────
+function triggerSOS() {
+  if (!confirm('⚠️ CONFIRM EMERGENCY SOS BROADCAST TO DECENTRALIZED MESH?')) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      action: 'send_sos',
+      lat: localTelemetry.lat,
+      lng: localTelemetry.lng,
+    }));
+  }
+}
+
+function showSOS(data) {
+  document.getElementById('sos-sender').textContent = 'FROM: ' + (data.sender || 'UNKNOWN');
+  document.getElementById('sos-lat').textContent = (data.lat || localTelemetry.lat || 0).toFixed(5);
+  document.getElementById('sos-lng').textContent = (data.lng || localTelemetry.lng || 0).toFixed(5);
+  document.getElementById('sos-overlay').classList.add('active');
+}
+
+function dismissSOS() {
+  document.getElementById('sos-overlay').classList.remove('active');
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'dismiss_sos' }));
+  }
+}
+
+// ── Shelter Location Broadcast ─────────────────────────────────
+function broadcastShelter() {
+  const name = prompt('Enter Shelter / Safe Haven Name:', 'SHELTER-DELTA');
+  if (!name) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      action: 'broadcast_shelter',
+      name: name,
+      lat: localTelemetry.lat,
+      lng: localTelemetry.lng,
+    }));
+  }
+}
+
+function updateWaypoints(waypoints) {
+  const list = document.getElementById('waypoints-list');
+  if (!list || !waypoints) return;
+  
+  let html = '';
+  waypoints.forEach(wp => {
+    const isShelter = wp.type === 'SHELTER';
+    html += `
+      <div class="flex items-center justify-between p-2 rounded bg-surface-container border ${isShelter ? 'border-secondary' : 'border-outline-variant/30'}">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[16px] ${isShelter ? 'text-secondary-fixed' : 'text-primary'}">${isShelter ? 'fort' : 'place'}</span>
+          <div>
+            <span class="block font-bold text-on-surface">${escapeHtml(wp.name)}</span>
+            <span class="text-[10px] text-on-surface-variant">(${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)})</span>
+          </div>
+        </div>
+        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isShelter ? 'bg-secondary-container text-on-secondary' : 'bg-surface-container-highest text-primary'}">${wp.type}</span>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+}
+
+// ── Node Triage Tracking ───────────────────────────────────────
+function updateNodes(nodes) {
+  const grid = document.getElementById('nodes-grid');
+  if (!grid || !nodes) return;
+
+  const entries = Object.entries(nodes);
+  document.getElementById('node-count-badge').textContent = `${entries.length} NODES LIVE`;
+
+  let html = '';
+  entries.forEach(([id, node]) => {
+    const isAlert = node.sos;
+    html += `
+      <div class="bg-surface-container rounded-xl p-space-sm shadow-md border ${isAlert ? 'border-error animate-pulse' : 'border-outline-variant/30'} flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full ${node.online ? 'bg-primary' : 'bg-on-surface-variant'}"></span>
+            <span class="font-label-lg font-bold text-on-surface">${escapeHtml(node.node_id || id)}</span>
+          </div>
+          <span class="font-label-sm text-[10px] px-2 py-0.5 rounded ${isAlert ? 'bg-error text-white' : 'bg-surface-container-highest text-primary'}">
+            ${isAlert ? '🚨 SOS EMERGENCY' : (node.online ? 'ONLINE' : 'OFFLINE')}
+          </span>
+        </div>
+        <div class="grid grid-cols-3 gap-1 bg-surface-container-lowest p-2 rounded-lg font-label-sm text-[10px] text-on-surface-variant">
+          <div><span class="text-white font-bold">${node.temp || 24}°C</span> TEMP</div>
+          <div><span class="text-white font-bold">${node.hum || 50}%</span> HUM</div>
+          <div><span class="text-primary font-bold">${node.rssi || -70}</span> dBm</div>
+        </div>
+        <div class="flex justify-between items-center text-[10px] font-label-sm text-on-surface-variant pt-1 border-t border-outline-variant/20">
+          <span>LAT: ${(node.lat || 13.0827).toFixed(4)}°</span>
+          <span>LNG: ${(node.lng || 80.2707).toFixed(4)}°</span>
+        </div>
+      </div>
+    `;
+  });
+  grid.innerHTML = html;
+}
+
+// ── Chat Comm ──────────────────────────────────────────────────
+function addChatMessage(m, scroll) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  const isOut = m.direction === 'out';
+  const div = document.createElement('div');
+  div.className = `p-2.5 rounded-lg max-w-[85%] font-label-md text-label-md ${isOut ? 'chat-bubble-out' : 'chat-bubble-in'}`;
+  div.innerHTML = `
+    <div class="flex items-center justify-between gap-3 text-[10px] text-on-surface-variant pb-1">
+      <span class="font-bold ${isOut ? 'text-primary' : 'text-secondary'}">${escapeHtml(m.sender)}</span>
+      <span>${escapeHtml(m.ts || '')}</span>
+    </div>
+    <div class="text-on-surface">${escapeHtml(m.text)}</div>
+  `;
+  container.appendChild(div);
+  if (scroll) scrollChatToBottom();
+}
+
+function scrollChatToBottom() {
+  const container = document.getElementById('chat-messages');
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'send_chat', text: text }));
+    input.value = '';
+  }
+}
+
+function quickReply(txt) {
+  document.getElementById('chat-input').value = txt;
+  sendChat();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+
+// ── Terminal / Sniffer ─────────────────────────────────────────
+function appendTerminal(raw) {
+  const term = document.getElementById('terminal-log');
+  if (!term) return;
+  const line = document.createElement('div');
+  const timeStr = new Date().toTimeString().slice(0, 8);
+  line.textContent = `[${timeStr}] ${raw}`;
+  term.appendChild(line);
+  if (term.childNodes.length > 300) term.removeChild(term.firstChild);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearTerminal() {
+  const term = document.getElementById('terminal-log');
+  if (term) term.innerHTML = '';
+}
+
+// ── Waterfall Spectrogram ──────────────────────────────────────
+function addWaterfallRow(rssi) {
+  const wf = document.getElementById('waterfall');
+  if (!wf) return;
+  const pct = Math.min(Math.max((rssi + 120) / 80, 0), 1);
+  const bars = 40;
+  let html = '<div class="flex gap-px h-2">';
+  for (let i = 0; i < bars; i++) {
+    const barPct = Math.random() * 0.3 + (i === 20 ? pct : pct * 0.4);
+    const clamped = Math.min(barPct, 1);
+    const r = Math.round(26 * clamped);
+    const g = Math.round(229 * clamped);
+    const b = Math.round(128 * clamped);
+    html += `<div class="flex-1 rounded-px" style="background:rgb(${r},${g},${b});opacity:${0.3 + clamped * 0.7}"></div>`;
+  }
+  html += '</div>';
+
+  waterfallRows.unshift(html);
+  if (waterfallRows.length > MAX_WATERFALL) waterfallRows.pop();
+  wf.innerHTML = waterfallRows.join('');
+}
+
+// ── Toast & Helpers ────────────────────────────────────────────
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-text').textContent = msg;
+  toast.classList.remove('opacity-0', '-translate-y-2.5');
+  toast.classList.add('opacity-100', 'translate-y-0');
+  setTimeout(() => {
+    toast.classList.remove('opacity-100', 'translate-y-0');
+    toast.classList.add('opacity-0', '-translate-y-2.5');
+  }, 3000);
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+for (let i = 0; i < 8; i++) addWaterfallRow(-95 + Math.random() * 15);
+connect();
+</script>
+</body>
+</html>

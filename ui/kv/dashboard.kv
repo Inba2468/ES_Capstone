@@ -1,0 +1,317 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  dashboard.kv  –  Tactical telemetry dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Reusable circular gauge widget ──────────────────────────────────────────
+<TacticalGauge@Widget>:
+    value: 0
+    max_val: 100
+    label: ''
+    unit: ''
+    warn_color: 1, 0.3, 0.1, 1
+    ok_color:   0.1, 0.9, 0.5, 1
+    size_hint: None, None
+    size: 120, 120
+    canvas:
+        # Outer ring (background)
+        Color:
+            rgba: 0.08, 0.12, 0.08, 1
+        Ellipse:
+            pos: self.x + 4, self.y + 4
+            size: self.width - 8, self.height - 8
+        # Arc fill
+        Color:
+            rgba: (self.warn_color if self.value / max(self.max_val, 1) > 0.75 else self.ok_color)
+        Line:
+            ellipse: (self.x+10, self.y+10, self.width-20, self.height-20, -90, -90 + 360 * min(self.value / max(self.max_val,1), 1))
+            width: 5
+            cap: 'none'
+        # Inner circle
+        Color:
+            rgba: 0.04, 0.06, 0.04, 1
+        Ellipse:
+            pos: self.x + 18, self.y + 18
+            size: self.width - 36, self.height - 36
+    Label:
+        text: '{:.0f}'.format(root.value)
+        font_size: '18sp'
+        bold: True
+        color: (root.warn_color if root.value / max(root.max_val,1) > 0.75 else root.ok_color)
+        center: root.center
+        y: root.center_y + 4
+        size_hint: None, None
+        size: root.width, 30
+    Label:
+        text: root.unit
+        font_size: '9sp'
+        color: 0.5, 0.6, 0.5, 1
+        center_x: root.center_x
+        y: root.y + 30
+        size_hint: None, None
+        size: root.width, 20
+    Label:
+        text: root.label
+        font_size: '9sp'
+        bold: True
+        color: 0.6, 0.7, 0.6, 1
+        center_x: root.center_x
+        top: root.top + 16
+        size_hint: None, None
+        size: root.width, 20
+        letter_spacing: 1
+
+# ── Nav bar button ────────────────────────────────────────────────────────────
+<NavBtn@Button>:
+    background_color: 0, 0, 0, 0
+    background_normal: ''
+    color: 0.4, 0.5, 0.4, 1
+    font_size: '10sp'
+    letter_spacing: 1
+    size_hint_x: 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+<DashboardScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.04, 0.055, 0.102, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    FloatLayout:
+
+        # ── Top header bar ───────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 52
+            top: root.top
+            x: 0
+            width: root.width
+            padding: [14, 8, 14, 0]
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: 0.06, 0.09, 0.06, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.3
+                Line:
+                    points: [self.x, self.y, self.right, self.y]
+                    width: 1
+
+            Label:
+                text: '⬡  TACTICAL MESH'
+                font_size: '13sp'
+                bold: True
+                color: 0.1, 0.9, 0.5, 1
+                letter_spacing: 3
+                size_hint_x: 0.6
+                halign: 'left'
+                text_size: self.size
+
+            Label:
+                text: root.timestamp
+                font_size: '11sp'
+                color: 0.4, 0.7, 0.4, 1
+                size_hint_x: 0.15
+                halign: 'right'
+                text_size: self.size
+
+            Spinner:
+                id: node_spinner
+                text: root.selected_node
+                values: root.node_list
+                font_size: '10sp'
+                color: 0, 1, 1, 1
+                background_color: 0.1, 0.2, 0.2, 1
+                size_hint_x: 0.25
+                on_text: root.select_node(self.text)
+                halign: 'right'
+                text_size: self.size
+
+        # ── Section title ────────────────────────────────────────────────────
+        Label:
+            text: '//  TELEMETRY  //'
+            font_size: '10sp'
+            color: 0.3, 0.5, 0.3, 1
+            letter_spacing: 4
+            size_hint: None, None
+            size: root.width, 22
+            top: root.top - 60
+            x: 0
+            halign: 'center'
+            text_size: self.size
+
+        # ── Gauge row ────────────────────────────────────────────────────────
+        GridLayout:
+            cols: 2
+            spacing: 20
+            padding: [20, 10]
+            size_hint: None, None
+            size: root.width, 280
+            center_x: root.center_x
+            top: root.top - 82
+
+            TacticalGauge:
+                id: gauge_temp
+                value: root.temp
+                max_val: 60
+                label: 'TEMP'
+                unit: '°C'
+                warn_color: 1, 0.3, 0.1, 1
+
+            TacticalGauge:
+                id: gauge_hum
+                value: root.hum
+                max_val: 100
+                label: 'HUMIDITY'
+                unit: '%RH'
+                ok_color: 0.2, 0.6, 1, 1
+
+            TacticalGauge:
+                id: gauge_smoke
+                value: root.smoke
+                max_val: 4095
+                label: 'SMOKE'
+                unit: 'ADC'
+                warn_color: 1, 0.5, 0, 1
+
+            TacticalGauge:
+                id: gauge_water
+                value: root.water
+                max_val: 4095
+                label: 'WATER LVL'
+                unit: 'ADC'
+                ok_color: 0.1, 0.6, 1, 1
+
+        # ── GPS info panel ───────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: None, None
+            size: root.width - 32, 54
+            center_x: root.center_x
+            top: root.top - 368
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: 0.06, 0.10, 0.06, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [8]
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.2
+                Line:
+                    rounded_rectangle: (self.x, self.y, self.width, self.height, 8)
+                    width: 1
+
+            Label:
+                text: '📡  GPS'
+                font_size: '11sp'
+                color: 0.1, 0.9, 0.5, 1
+                size_hint_x: 0.2
+                bold: True
+
+            Label:
+                text: '{:.5f}° N'.format(root.lat) if root.gps_fix else 'NO FIX'
+                font_size: '11sp'
+                color: 0.8, 0.9, 0.8, 1
+                size_hint_x: 0.35
+
+            Label:
+                text: '{:.5f}° E'.format(root.lng) if root.gps_fix else '---'
+                font_size: '11sp'
+                color: 0.8, 0.9, 0.8, 1
+                size_hint_x: 0.35
+
+            Label:
+                text: '✅' if root.gps_fix else '❌'
+                font_size: '16sp'
+                size_hint_x: 0.1
+
+        # ── Node count + last update ──────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: None, None
+            size: root.width - 32, 36
+            center_x: root.center_x
+            top: root.top - 428
+            spacing: 12
+
+            Label:
+                text: '⬡  NODES ONLINE: [b]{}[/b]'.format(root.node_count)
+                markup: True
+                font_size: '11sp'
+                color: 0.5, 0.8, 0.5, 1
+                halign: 'left'
+                text_size: self.size
+
+            Label:
+                text: 'UPD: ' + root.last_update
+                font_size: '10sp'
+                color: 0.35, 0.5, 0.35, 1
+                halign: 'right'
+                text_size: self.size
+
+        # ── Navigation bar ───────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 56
+            y: 0
+            x: 0
+            width: root.width
+            spacing: 1
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.08, 0.05, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.25
+                Line:
+                    points: [self.x, self.top, self.right, self.top]
+                    width: 1
+
+            NavBtn:
+                text: '📊\nDASH'
+                color: 0.1, 0.9, 0.5, 1
+                on_press: root.goto('dashboard')
+
+            NavBtn:
+                text: '📡\nCHAT'
+                on_press: root.goto('chat')
+
+            NavBtn:
+                text: '🗺\nMAP'
+                on_press: root.goto('map')
+
+            NavBtn:
+                text: '⚙\nSETTINGS'
+                on_press: root.goto('settings')
+
+        # ── Toast overlay ────────────────────────────────────────────────────
+        Label:
+            text: root.toast_text
+            opacity: root.toast_alpha
+            size_hint: None, None
+            size: root.width - 40, 36
+            center_x: root.center_x
+            y: 70
+            font_size: '11sp'
+            color: 0.05, 0.05, 0.05, 1
+            halign: 'center'
+            text_size: self.size
+            canvas.before:
+                Color:
+                    rgba: 0.1, 0.9, 0.5, root.toast_alpha
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [18]

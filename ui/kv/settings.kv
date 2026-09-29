@@ -1,0 +1,413 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  settings.kv  –  BLE device management & app configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+<DeviceRow@BoxLayout>:
+    addr: ''
+    name: ''
+    rssi: 0
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: 44
+    padding: [8, 4]
+    spacing: 8
+    canvas.before:
+        Color:
+            rgba: 0.06, 0.10, 0.06, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [6]
+        Color:
+            rgba: 0.1, 0.9, 0.5, 0.15
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 6)
+            width: 1
+
+    Label:
+        text: root.name
+        font_size: '12sp'
+        bold: True
+        color: 0.8, 1, 0.8, 1
+        size_hint_x: 0.45
+        halign: 'left'
+        text_size: self.size
+
+    Label:
+        text: root.addr
+        font_size: '9sp'
+        color: 0.4, 0.6, 0.4, 1
+        size_hint_x: 0.35
+        halign: 'left'
+        text_size: self.size
+
+    Label:
+        text: '{}dBm'.format(root.rssi)
+        font_size: '9sp'
+        color: (0.1, 0.9, 0.5, 1) if root.rssi > -70 else (1, 0.5, 0.1, 1)
+        size_hint_x: 0.12
+        halign: 'center'
+        text_size: self.size
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+<SettingsScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.04, 0.055, 0.102, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    ScrollView:
+        size_hint: 1, 1
+        y: 0
+        bar_width: 3
+        bar_color: 0.1, 0.9, 0.5, 0.4
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: self.minimum_height
+            spacing: 0
+            padding: 0
+
+            # ── Header ───────────────────────────────────────────────────────
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 52
+                padding: [14, 8, 14, 0]
+                spacing: 8
+                canvas.before:
+                    Color:
+                        rgba: 0.06, 0.09, 0.06, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                    Color:
+                        rgba: 0.1, 0.9, 0.5, 0.3
+                    Line:
+                        points: [self.x, self.y, self.right, self.y]
+                        width: 1
+
+                Button:
+                    text: '◀'
+                    size_hint: None, None
+                    size: 32, 36
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.1, 0.9, 0.5, 1
+                    font_size: '16sp'
+                    on_press: root.goto('dashboard')
+
+                Label:
+                    text: '⚙  CONFIGURATION'
+                    font_size: '13sp'
+                    bold: True
+                    color: 0.1, 0.9, 0.5, 1
+                    letter_spacing: 3
+                    halign: 'center'
+                    text_size: self.size
+
+            # ── Section: BLE ──────────────────────────────────────────────────
+            Label:
+                text: '  //  BLUETOOTH LE  //'
+                font_size: '10sp'
+                color: 0.3, 0.5, 0.3, 1
+                letter_spacing: 4
+                size_hint_y: None
+                height: 32
+                halign: 'left'
+                text_size: self.size
+                padding: [14, 0]
+
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 40
+                padding: [14, 4]
+                spacing: 8
+
+                Label:
+                    text: '● ' + root.ble_status
+                    font_size: '11sp'
+                    color: (0.1, 0.9, 0.5, 1) if 'CONNECTED' in root.ble_status and 'DIS' not in root.ble_status else (1, 0.3, 0.3, 1)
+                    size_hint_x: 0.55
+                    halign: 'left'
+                    text_size: self.size
+
+                Button:
+                    text: '🔍 SCAN'
+                    size_hint_x: 0.22
+                    font_size: '10sp'
+                    bold: True
+                    color: 0.04, 0.06, 0.04, 1
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    on_press: root.start_scan()
+                    canvas.before:
+                        Color:
+                            rgba: (0.2, 0.6, 0.3, 1) if not root.scanning else (0.5, 0.5, 0.2, 1)
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [6]
+
+                Button:
+                    text: 'CONNECT'
+                    size_hint_x: 0.22
+                    font_size: '10sp'
+                    bold: True
+                    color: 0.04, 0.06, 0.04, 1
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    on_press: root.connect()
+                    canvas.before:
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [6]
+
+            # Device list
+            BoxLayout:
+                id: device_list
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 4
+                padding: [14, 4]
+
+                Label:
+                    text: 'Scanning…' if root.scanning else (root.status_msg if not root.scanned_devices else '')
+                    font_size: '11sp'
+                    color: 0.4, 0.6, 0.4, 0.8
+                    size_hint_y: None
+                    height: 30 if (root.scanning or (root.status_msg and not root.scanned_devices)) else 0
+                    halign: 'center'
+                    text_size: self.size
+
+            # ── Section: Operator Config ─────────────────────────────────────
+            Label:
+                text: '  //  OPERATOR CONFIG  //'
+                font_size: '10sp'
+                color: 0.3, 0.5, 0.3, 1
+                letter_spacing: 4
+                size_hint_y: None
+                height: 32
+                halign: 'left'
+                text_size: self.size
+                padding: [14, 0]
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                padding: [14, 4]
+                spacing: 12
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: 36
+                    Label:
+                        text: 'CALLSIGN:'
+                        font_size: '11sp'
+                        color: 0.8, 0.9, 0.8, 1
+                        size_hint_x: 0.4
+                        halign: 'left'
+                        text_size: self.size
+                    TextInput:
+                        id: callsign_input
+                        text: app.callsign
+                        font_size: '11sp'
+                        size_hint_x: 0.6
+                        multiline: False
+                        on_text: app.callsign = self.text
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: 36
+                    Label:
+                        text: 'DATA LOGGING:'
+                        font_size: '11sp'
+                        color: 0.8, 0.9, 0.8, 1
+                        size_hint_x: 0.6
+                        halign: 'left'
+                        text_size: self.size
+                    Switch:
+                        id: data_logging_toggle
+                        active: True
+                        size_hint_x: 0.4
+
+            # ── Section: Alert Thresholds ─────────────────────────────────────
+            Label:
+                text: '  //  ALERT THRESHOLDS  //'
+                font_size: '10sp'
+                color: 0.3, 0.5, 0.3, 1
+                letter_spacing: 4
+                size_hint_y: None
+                height: 32
+                halign: 'left'
+                text_size: self.size
+                padding: [14, 0]
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                padding: [14, 4]
+                spacing: 12
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: 36
+                    Label:
+                        text: 'TEMP MAX: {:.0f}°C'.format(root.temp_threshold)
+                        font_size: '11sp'
+                        color: 0.8, 0.9, 0.8, 1
+                        size_hint_x: 0.4
+                        halign: 'left'
+                        text_size: self.size
+                    Slider:
+                        min: 30
+                        max: 70
+                        value: root.temp_threshold
+                        size_hint_x: 0.6
+                        cursor_size: (20, 20)
+                        on_value: root.temp_threshold = self.value
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: 36
+                    Label:
+                        text: 'SMOKE MAX: {:.0f}'.format(root.smoke_threshold)
+                        font_size: '11sp'
+                        color: 0.8, 0.9, 0.8, 1
+                        size_hint_x: 0.4
+                        halign: 'left'
+                        text_size: self.size
+                    Slider:
+                        min: 500
+                        max: 4095
+                        value: root.smoke_threshold
+                        size_hint_x: 0.6
+                        on_value: root.smoke_threshold = self.value
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: 36
+                    Label:
+                        text: 'WATER MAX: {:.0f}'.format(root.water_threshold)
+                        font_size: '11sp'
+                        color: 0.8, 0.9, 0.8, 1
+                        size_hint_x: 0.4
+                        halign: 'left'
+                        text_size: self.size
+                    Slider:
+                        min: 500
+                        max: 4095
+                        value: root.water_threshold
+                        size_hint_x: 0.6
+                        on_value: root.water_threshold = self.value
+
+                Button:
+                    text: 'SAVE THRESHOLDS'
+                    size_hint_y: None
+                    height: 38
+                    font_size: '11sp'
+                    bold: True
+                    color: 0.04, 0.06, 0.04, 1
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    on_press: root.save_thresholds()
+                    canvas.before:
+                        Color:
+                            rgba: 0.1, 0.8, 0.5, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [6]
+
+            # ── Section: Data Export ──────────────────────────────────────────
+            Label:
+                text: '  //  DATA EXPORT  //'
+                font_size: '10sp'
+                color: 0.3, 0.5, 0.3, 1
+                letter_spacing: 4
+                size_hint_y: None
+                height: 32
+                halign: 'left'
+                text_size: self.size
+                padding: [14, 0]
+
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 44
+                padding: [14, 4]
+                spacing: 12
+
+                Button:
+                    text: '💬 Export Chat CSV'
+                    size_hint_x: 0.5
+                    font_size: '10sp'
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.8, 1, 0.8, 1
+                    on_press: root.export_chat_csv()
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.12, 0.07, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [6]
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 0.3
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 6)
+                            width: 1
+
+                Button:
+                    text: '📈 Export Telemetry'
+                    size_hint_x: 0.5
+                    font_size: '10sp'
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.8, 1, 0.8, 1
+                    on_press: root.export_telemetry_csv()
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.07, 0.12, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [6]
+                        Color:
+                            rgba: 0.2, 0.5, 1, 0.3
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 6)
+                            width: 1
+
+            # Status message
+            Label:
+                text: root.status_msg
+                font_size: '10sp'
+                color: 0.1, 0.9, 0.5, 0.8
+                size_hint_y: None
+                height: 30 if root.status_msg else 0
+                halign: 'center'
+                text_size: self.size
+
+            # Spacer
+            Widget:
+                size_hint_y: None
+                height: 20

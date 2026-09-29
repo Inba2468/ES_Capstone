@@ -1,0 +1,110 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  boot.kv  –  Tactical boot / splash screen
+# ─────────────────────────────────────────────────────────────────────────────
+
+<BootScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.04, 0.055, 0.102, 1      # #0A0E1A
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        # Subtle grid pattern
+        Color:
+            rgba: 0.1, 0.9, 0.5, 0.03
+        Line:
+            points: [0, root.height*0.1, root.width, root.height*0.1]
+            width: 1
+        Line:
+            points: [0, root.height*0.9, root.width, root.height*0.9]
+            width: 1
+
+    FloatLayout:
+        opacity: root.alpha
+
+        # ── Central logo block ───────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'vertical'
+            center_x: root.center_x
+            center_y: root.center_y + 40
+            size_hint: None, None
+            size: 320, 260
+            spacing: 12
+
+            # Hex icon placeholder
+            Label:
+                text: '⬡'
+                font_size: '72sp'
+                color: 0.1, 0.9, 0.5, 1     # #1AE580 tactical green
+                halign: 'center'
+                bold: True
+
+            Label:
+                text: 'TACTICAL MESH'
+                font_name: 'Orbitron' if 'Orbitron' in app.__dict__ else 'Roboto'
+                font_size: '22sp'
+                color: 0.1, 0.9, 0.5, 1
+                halign: 'center'
+                letter_spacing: 8
+
+            Label:
+                text: 'OFF-GRID  LoRa + BLE  NETWORK'
+                font_size: '11sp'
+                color: 0.5, 0.6, 0.5, 1
+                halign: 'center'
+                letter_spacing: 3
+
+            Label:
+                text: 'v1.0 // ESP32 // 433MHz'
+                font_size: '10sp'
+                color: 0.3, 0.4, 0.3, 1
+                halign: 'center'
+
+        # ── Status text ──────────────────────────────────────────────────────
+        Label:
+            text: root.status_text
+            font_size: '11sp'
+            color: 0.1, 0.9, 0.5, 0.8
+            center_x: root.center_x
+            y: root.height * 0.22
+            halign: 'center'
+            letter_spacing: 2
+
+        # ── Progress bar track ───────────────────────────────────────────────
+        Widget:
+            id: bar_track
+            center_x: root.center_x
+            y: root.height * 0.17
+            size_hint: None, None
+            size: 300, 4
+            canvas:
+                Color:
+                    rgba: 0.1, 0.15, 0.1, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.width * root.progress / 100, self.height
+
+        # ── Corner decorations ───────────────────────────────────────────────
+        Label:
+            text: '[  SYS:BOOT  ]'
+            font_size: '9sp'
+            color: 0.2, 0.4, 0.2, 0.6
+            x: 12
+            y: root.height - 28
+            size_hint: None, None
+            size: 140, 20
+
+        Label:
+            text: '433MHz LoRa ACTIVE'
+            font_size: '9sp'
+            color: 0.2, 0.4, 0.2, 0.6
+            right: root.right - 12
+            y: root.height - 28
+            size_hint: None, None
+            size: 150, 20

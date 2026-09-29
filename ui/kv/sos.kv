@@ -1,0 +1,219 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  sos.kv  –  Full-screen SOS emergency override
+# ─────────────────────────────────────────────────────────────────────────────
+
+<SOSScreen>:
+    canvas.before:
+        # Flashing red background
+        Color:
+            rgba: 0.25 * root.flash_alpha, 0.02, 0.02, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        # Scanline texture overlay effect
+        Color:
+            rgba: 1, 0, 0, 0.04 * root.flash_alpha
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    FloatLayout:
+
+        # ── ALERT banner ─────────────────────────────────────────────────────
+        Label:
+            text: '🚨  S.O.S  RECEIVED  🚨'
+            font_size: '26sp'
+            bold: True
+            color: 1, 0.1, 0.1, root.flash_alpha
+            center_x: root.center_x
+            top: root.top - 60
+            size_hint: None, None
+            size: root.width, 50
+            halign: 'center'
+            text_size: self.size
+
+        Label:
+            text: '──  EMERGENCY DISTRESS SIGNAL  ──'
+            font_size: '11sp'
+            color: 1, 0.5, 0.5, 0.7
+            center_x: root.center_x
+            top: root.top - 115
+            size_hint: None, None
+            size: root.width, 24
+            halign: 'center'
+            text_size: self.size
+            letter_spacing: 2
+
+        # ── Info panel ────────────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'vertical'
+            spacing: 14
+            padding: [24, 16]
+            center_x: root.center_x
+            center_y: root.center_y + 30
+            size_hint: None, None
+            size: root.width - 40, 320
+            canvas.before:
+                Color:
+                    rgba: 0.12, 0.02, 0.02, 0.9
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [12]
+                Color:
+                    rgba: 1, 0.1, 0.1, 0.5
+                Line:
+                    rounded_rectangle: (self.x, self.y, self.width, self.height, 12)
+                    width: 1.5
+
+            # Sender
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 36
+                Label:
+                    text: '[ SENDER ]'
+                    font_size: '10sp'
+                    color: 0.7, 0.3, 0.3, 1
+                    size_hint_x: 0.35
+                    halign: 'left'
+                    text_size: self.size
+                Label:
+                    text: root.sender
+                    font_size: '16sp'
+                    bold: True
+                    color: 1, 0.7, 0.7, 1
+                    size_hint_x: 0.65
+                    halign: 'left'
+                    text_size: self.size
+
+            # GPS
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 36
+                Label:
+                    text: '[ LOCATION ]'
+                    font_size: '10sp'
+                    color: 0.7, 0.3, 0.3, 1
+                    size_hint_x: 0.35
+                    halign: 'left'
+                    text_size: self.size
+                Label:
+                    text: '{:.5f}°N  {:.5f}°E'.format(root.sos_lat, root.sos_lng)
+                    font_size: '13sp'
+                    color: 1, 0.8, 0.8, 1
+                    size_hint_x: 0.65
+                    halign: 'left'
+                    text_size: self.size
+
+            # Distance
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 36
+                Label:
+                    text: '[ DISTANCE ]'
+                    font_size: '10sp'
+                    color: 0.7, 0.3, 0.3, 1
+                    size_hint_x: 0.35
+                    halign: 'left'
+                    text_size: self.size
+                Label:
+                    text: root.distance_str
+                    font_size: '16sp'
+                    bold: True
+                    color: 1, 0.5, 0.2, 1
+                    size_hint_x: 0.65
+                    halign: 'left'
+                    text_size: self.size
+
+            # Bearing
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 36
+                Label:
+                    text: '[ BEARING ]'
+                    font_size: '10sp'
+                    color: 0.7, 0.3, 0.3, 1
+                    size_hint_x: 0.35
+                    halign: 'left'
+                    text_size: self.size
+                Label:
+                    text: root.bearing_str
+                    font_size: '16sp'
+                    bold: True
+                    color: 1, 0.8, 0.2, 1
+                    size_hint_x: 0.65
+                    halign: 'left'
+                    text_size: self.size
+
+            # Time elapsed
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: 36
+                Label:
+                    text: '[ ELAPSED ]'
+                    font_size: '10sp'
+                    color: 0.7, 0.3, 0.3, 1
+                    size_hint_x: 0.35
+                    halign: 'left'
+                    text_size: self.size
+                Label:
+                    text: root.time_elapsed
+                    font_size: '16sp'
+                    bold: True
+                    color: 1, 1, 0.3, 1
+                    size_hint_x: 0.65
+                    halign: 'left'
+                    text_size: self.size
+
+            Label:
+                text: '⚠  AUTO-DISMISS IN 60 SECONDS  ⚠'
+                font_size: '9sp'
+                color: 0.7, 0.3, 0.3, 0.7
+                size_hint_y: None
+                height: 20
+                halign: 'center'
+                text_size: self.size
+
+        # ── ACKNOWLEDGE button ────────────────────────────────────────────────
+        Button:
+            text: '✔  ACKNOWLEDGE  //  RESCUE EN ROUTE'
+            font_size: '13sp'
+            bold: True
+            color: 1, 0.1, 0.1, 1
+            background_color: 0,0,0,0
+            background_normal: ''
+            size_hint: None, None
+            size: root.width - 40, 56
+            center_x: root.center_x
+            y: 60
+            on_press: root.acknowledge()
+            canvas.before:
+                Color:
+                    rgba: 0.6, 0.04, 0.04, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [10]
+                Color:
+                    rgba: 1, 0.2, 0.2, 0.8
+                Line:
+                    rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
+                    width: 2
+
+        # ── Bottom caution strip ──────────────────────────────────────────────
+        Label:
+            text: '▓▒░  EMERGENCY PROTOCOL ACTIVE  ░▒▓'
+            font_size: '9sp'
+            color: 1, 0.2, 0.2, 0.5
+            center_x: root.center_x
+            y: 10
+            size_hint: None, None
+            size: root.width, 22
+            halign: 'center'
+            letter_spacing: 2

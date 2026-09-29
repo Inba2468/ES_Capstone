@@ -1,0 +1,350 @@
+#:kivy 2.3.0
+# ─────────────────────────────────────────────────────────────────────────────
+#  chat.kv  –  Tactical encrypted messaging interface
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Chat bubble ──────────────────────────────────────────────────────────────
+<ChatBubble@BoxLayout>:
+    sender: ''
+    text: ''
+    ts: 0
+    direction: 'in'          # 'in' or 'out'
+    orientation: 'vertical'
+    size_hint_y: None
+    height: self.minimum_height
+    padding: [12, 4, 12, 4]
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: self.minimum_height
+        padding: 0
+
+        # Spacer for outgoing messages
+        Widget:
+            size_hint_x: 0.15 if root.direction == 'out' else 0
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: self.minimum_height
+            size_hint_x: 0.85
+            canvas.before:
+                Color:
+                    rgba: (0.06, 0.14, 0.08, 1) if root.direction == 'in' else (0.04, 0.08, 0.14, 1)
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [10, 10, 10, 2] if root.direction == 'in' else [10, 10, 2, 10]
+                Color:
+                    rgba: (0.1, 0.9, 0.5, 0.3) if root.direction == 'in' else (0.1, 0.4, 0.9, 0.3)
+                Line:
+                    rounded_rectangle: (self.x, self.y, self.width, self.height, 10, 10, 10, 2 if root.direction == 'in' else 2, 10, 10)
+                    width: 1
+
+            Label:
+                text: ('[b][color=#1AE580]' + root.sender + '[/color][/b]' if root.direction == 'in' else '[b][color=#4A90F0]YOU[/color][/b]')
+                markup: True
+                font_size: '9sp'
+                size_hint_y: None
+                height: 18
+                halign: 'left'
+                text_size: self.width, None
+                padding: [8, 4, 8, 0]
+
+            Label:
+                text: root.text
+                font_size: '12sp'
+                color: 0.9, 0.95, 0.9, 1
+                size_hint_y: None
+                height: self.texture_size[1] + 8
+                halign: 'left'
+                text_size: self.width - 16, None
+                padding: [8, 2, 8, 4]
+
+        # Spacer for incoming messages
+        Widget:
+            size_hint_x: 0.15 if root.direction == 'in' else 0
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+<ChatScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.04, 0.055, 0.102, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    FloatLayout:
+
+        # ── Top header ───────────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 52
+            top: root.top
+            x: 0
+            width: root.width
+            padding: [14, 8, 14, 0]
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: 0.06, 0.09, 0.06, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.3
+                Line:
+                    points: [self.x, self.y, self.right, self.y]
+                    width: 1
+
+            Button:
+                text: '◀'
+                size_hint: None, None
+                size: 32, 36
+                background_color: 0,0,0,0
+                background_normal: ''
+                color: 0.1, 0.9, 0.5, 1
+                font_size: '16sp'
+                on_press: root.goto('dashboard')
+
+            Label:
+                text: '📡  TACTICAL COMMS'
+                font_size: '13sp'
+                bold: True
+                color: 0.1, 0.9, 0.5, 1
+                letter_spacing: 3
+                size_hint_x: 0.65
+                halign: 'center'
+                text_size: self.size
+
+            Label:
+                text: root.node_label
+                font_size: '9sp'
+                color: 0.4, 0.6, 0.4, 1
+                size_hint_x: 0.2
+                halign: 'right'
+                text_size: self.size
+
+        # ── Message list (ScrollView + StackLayout) ──────────────────────────
+        ScrollView:
+            id: chat_scroll
+            size_hint: 1, 1
+            y: 130
+            height: root.height - 52 - 130
+            x: 0
+            bar_width: 3
+            bar_color: 0.1, 0.9, 0.5, 0.5
+            scroll_type: ['bars', 'content']
+
+            StackLayout:
+                id: msg_stack
+                orientation: 'tb-lr'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 4
+                padding: [0, 8, 0, 8]
+
+                # Messages are added dynamically in chat_screen.py
+                # KV placeholder: shows when no messages
+                Label:
+                    text: ('No messages yet\nSend the first tactical message' if len(root.messages) == 0 else '')
+                    font_size: '12sp'
+                    color: 0.3, 0.4, 0.3, 1
+                    halign: 'center'
+                    size_hint_y: None
+                    height: 60
+                    text_size: root.width, None
+
+        # ── Quick reply chips ─────────────────────────────────────────────────
+        ScrollView:
+            size_hint: 1, None
+            height: 40
+            y: 88
+            x: 0
+            do_scroll_x: True
+            do_scroll_y: False
+            bar_width: 0
+
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_x: None
+                width: self.minimum_width
+                spacing: 6
+                padding: [10, 4, 10, 4]
+
+                Button:
+                    text: 'COPY THAT'
+                    size_hint: None, None
+                    size: 100, 32
+                    font_size: '9sp'
+                    bold: True
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.1, 0.9, 0.5, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.15, 0.08, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [16]
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 0.4
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 16)
+                            width: 1
+                    on_press: root.send_quick_reply(self.text)
+
+                Button:
+                    text: 'HOLD POSITION'
+                    size_hint: None, None
+                    size: 120, 32
+                    font_size: '9sp'
+                    bold: True
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.1, 0.9, 0.5, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.15, 0.08, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [16]
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 0.4
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 16)
+                            width: 1
+                    on_press: root.send_quick_reply(self.text)
+
+                Button:
+                    text: 'MOVING TO POS'
+                    size_hint: None, None
+                    size: 120, 32
+                    font_size: '9sp'
+                    bold: True
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.1, 0.9, 0.5, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.15, 0.08, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [16]
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 0.4
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 16)
+                            width: 1
+                    on_press: root.send_quick_reply(self.text)
+
+                Button:
+                    text: 'ALL CLEAR'
+                    size_hint: None, None
+                    size: 90, 32
+                    font_size: '9sp'
+                    bold: True
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 0.1, 0.9, 0.5, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.05, 0.15, 0.08, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [16]
+                        Color:
+                            rgba: 0.1, 0.9, 0.5, 0.4
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 16)
+                            width: 1
+                    on_press: root.send_quick_reply(self.text)
+
+                Button:
+                    text: 'NEED EVAC'
+                    size_hint: None, None
+                    size: 100, 32
+                    font_size: '9sp'
+                    bold: True
+                    background_color: 0,0,0,0
+                    background_normal: ''
+                    color: 1, 0.4, 0.1, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.15, 0.05, 0.02, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [16]
+                        Color:
+                            rgba: 1, 0.4, 0.1, 0.5
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, 16)
+                            width: 1
+                    on_press: root.send_quick_reply(self.text)
+
+        # ── Input bar ────────────────────────────────────────────────────────
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: 56
+            y: 0
+            x: 0
+            width: root.width
+            spacing: 8
+            padding: [10, 8, 10, 8]
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.08, 0.05, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0.1, 0.9, 0.5, 0.2
+                Line:
+                    points: [self.x, self.top, self.right, self.top]
+                    width: 1
+
+            TextInput:
+                id: msg_input
+                text: root.input_text
+                hint_text: 'Enter tactical message…'
+                hint_text_color: 0.3, 0.4, 0.3, 1
+                foreground_color: 0.9, 1, 0.9, 1
+                background_color: 0.06, 0.1, 0.06, 1
+                cursor_color: 0.1, 0.9, 0.5, 1
+                font_size: '12sp'
+                multiline: False
+                size_hint_x: 0.75
+                on_text: root.input_text = self.text
+                on_text_validate: root.send_message()
+                canvas.before:
+                    Color:
+                        rgba: 0.1, 0.9, 0.5, 0.3
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, 6)
+                        width: 1
+
+            Button:
+                text: root.send_status if root.send_status else '▶ SEND'
+                size_hint_x: 0.25
+                font_size: '10sp'
+                bold: True
+                color: 0.04, 0.06, 0.04, 1
+                background_color: 0,0,0,0
+                background_normal: ''
+                on_press: root.send_message()
+                canvas.before:
+                    Color:
+                        rgba: 0.1, 0.9, 0.5, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [6]
