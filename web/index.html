@@ -133,24 +133,34 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- Center: Hardware / Mode Controller & Status Chips -->
+    <!-- Center: Hardware & Mode Controller -->
     <div class="flex items-center gap-space-xs flex-shrink-0">
-      <!-- Mode & Hardware Switcher -->
-      <div class="flex items-center bg-surface-container-high rounded p-0.5 border border-outline-variant/40">
-        <button id="mode-demo-btn" onclick="toggleDemoMode()"
-          class="flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm font-bold bg-primary-container text-on-primary transition-all">
-          <span class="material-symbols-outlined text-[13px]">smart_toy</span>
-          <span id="demo-btn-label">DEMO MODE</span>
-        </button>
-        <button onclick="openBleModal()"
-          class="flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-primary transition-all">
-          <span class="material-symbols-outlined text-[13px]">bluetooth_searching</span>
-          <span id="ble-btn-label">PAIR ESP32</span>
+      
+      <!-- Demo Mode Button / Status -->
+      <button id="mode-demo-btn" onclick="toggleDemoMode()"
+        class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-label-sm font-bold bg-tertiary-container/30 text-tertiary border border-tertiary/40 hover:bg-tertiary-container/50 transition-all">
+        <span id="demo-indicator-dot" class="w-2 h-2 rounded-full bg-tertiary animate-pulse block"></span>
+        <span id="demo-btn-label">DEMO: ACTIVE</span>
+      </button>
+
+      <!-- Physical ESP32 Hardware Status / Pair Button -->
+      <div id="ble-hardware-container" class="flex items-center gap-1 bg-surface-container-high rounded p-0.5 border border-outline-variant/40">
+        <div id="ble-active-chip" class="hidden items-center gap-1.5 px-2 py-1 bg-primary-container text-on-primary rounded text-xs font-label-sm font-bold">
+          <span class="w-2 h-2 rounded-full bg-on-primary animate-ping block"></span>
+          <span id="ble-active-name">ESP32 CONNECTED</span>
+          <button onclick="disconnectHardwareBle()" class="ml-1 hover:text-error transition-colors" title="Disconnect ESP32">
+            <span class="material-symbols-outlined text-[14px]">close</span>
+          </button>
+        </div>
+        <button id="pair-esp32-btn" onclick="openBleModal()"
+          class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-label-sm font-bold bg-surface-container text-primary hover:bg-surface-container-highest transition-all">
+          <span class="material-symbols-outlined text-[14px]">bluetooth_searching</span>
+          <span>PAIR ESP32</span>
         </button>
       </div>
 
       <!-- Live metrics chips -->
-      <div class="hidden md:flex items-center gap-space-xs">
+      <div class="hidden lg:flex items-center gap-space-xs">
         <div id="gps-chip" class="flex items-center gap-1 bg-surface-container px-2 py-1 rounded">
           <span class="material-symbols-outlined text-secondary text-[13px]">satellite_alt</span>
           <span id="gps-label" class="font-label-sm text-label-sm text-secondary">3D FIX</span>
@@ -189,7 +199,7 @@ tailwind.config = {
     <div class="w-full bg-surface-container-low rounded-lg p-space-sm flex flex-col gap-space-xs shadow-md bracket relative">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-space-xs">
-          <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+          <span id="banner-sync-dot" class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
           <span id="mesh-status-text" class="font-label-sm text-label-sm text-primary uppercase tracking-widest">RF SYNC ESTABLISHED</span>
         </div>
         <div class="flex items-center gap-1 bg-surface-container-highest px-space-xs py-0.5 rounded">
@@ -608,23 +618,24 @@ tailwind.config = {
     </div>
 
     <p class="font-body-md text-body-md text-on-surface-variant">
-      Scan and connect directly to your ESP32 LoRa Gateway over Bluetooth LE. Make sure your ESP32 is powered on and advertising Nordic UART Service (NUS).
+      Pair your physical ESP32 LoRa Gateway over Bluetooth LE. Connecting automatically pauses the simulator and switches to live hardware streaming.
     </p>
 
     <!-- Scan controls -->
     <div class="flex gap-2">
-      <button id="scan-ble-btn" onclick="startBleScan()" class="flex-1 bg-primary-container text-on-primary font-label-md font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-primary transition-all">
-        <span class="material-symbols-outlined text-[18px]">search</span>
-        SCAN BLE PERIPHERALS
+      <button onclick="connectWebBluetooth()" class="flex-1 bg-primary-container text-on-primary font-label-md font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-primary transition-all shadow-md">
+        <span class="material-symbols-outlined text-[18px]">bluetooth</span>
+        DIRECT BROWSER PAIR (WEB BLE)
       </button>
-      <button onclick="connectWebBluetooth()" class="bg-surface-container-high text-secondary hover:text-white font-label-md font-bold px-3 py-2.5 rounded-lg transition-all border border-secondary/40">
-        WEB BLE
+      <button id="scan-ble-btn" onclick="startBleScan()" class="bg-surface-container-high text-on-surface hover:text-primary font-label-md font-bold px-4 py-2.5 rounded-lg transition-all border border-outline-variant/40 flex items-center gap-1">
+        <span class="material-symbols-outlined text-[16px]">search</span>
+        BACKEND SCAN
       </button>
     </div>
 
     <!-- Device list -->
     <div id="ble-device-list" class="flex flex-col gap-2 max-h-48 overflow-y-auto bg-surface-container-lowest p-2 rounded-xl border border-outline-variant/30">
-      <span class="text-center font-label-sm text-on-surface-variant py-4">Click "SCAN BLE PERIPHERALS" to search for nearby ESP32 nodes...</span>
+      <span class="text-center font-label-sm text-on-surface-variant py-4">Click "DIRECT BROWSER PAIR" or "BACKEND SCAN" to connect your ESP32 node.</span>
     </div>
 
     <div class="flex justify-between items-center pt-2 border-t border-outline-variant/30">
@@ -653,6 +664,16 @@ let currentMode = 'DEMO';
 let localTelemetry = { lat: 13.0827, lng: 80.2707, temp: 28.0, hum: 65.0, smoke: 240, water: 520 };
 const waterfallRows = [];
 const MAX_WATERFALL = 20;
+
+// Web Bluetooth state
+let webBleDevice = null;
+let webBleServer = null;
+let webBleTxChar = null;
+let webBleRxChar = null;
+
+const NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const NUS_TX_CHAR = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const NUS_RX_CHAR = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
 // ── Clock ──────────────────────────────────────────────────────
 function updateClock() {
@@ -693,7 +714,7 @@ function connect() {
 
   ws.onopen = () => {
     setConnStatus(true);
-    showToast('TACTICAL GATEWAY CONNECTED');
+    showToast('TACTICAL GATEWAY ONLINE');
   };
 
   ws.onclose = () => {
@@ -726,7 +747,7 @@ function handleMessage(data) {
   }
 
   if (data.type === 'state') {
-    if (data.mode) setModeUI(data.mode, data.ble_status);
+    setModeUI(data.mode || 'DEMO', data.ble_status, data.ble_device_name);
     if (data.telemetry) updateSensors(data.telemetry, data.rssi || -82, data.snr || 9.4);
     if (data.messages) {
       document.getElementById('chat-messages').innerHTML = '';
@@ -784,7 +805,7 @@ function handleMessage(data) {
   }
 
   if (data.type === 'mode_change' || data.type === 'ble_status') {
-    setModeUI(data.mode || currentMode, data.status || data.ble_status);
+    setModeUI(data.mode || (data.connected ? 'HARDWARE_BLE' : 'DEMO_OFF'), data.status || data.ble_status, (data.device ? data.device.name : null));
     return;
   }
 
@@ -799,23 +820,57 @@ function handleMessage(data) {
   }
 }
 
-// ── Mode Switcher & BLE Pair ──────────────────────────────────
-function setModeUI(mode, status) {
+// ── Mode Switcher & BLE Controller ────────────────────────────
+function setModeUI(mode, status, devName) {
   currentMode = mode;
   const demoBtn = document.getElementById('mode-demo-btn');
   const demoLabel = document.getElementById('demo-btn-label');
-  const bleLabel = document.getElementById('ble-btn-label');
+  const demoDot = document.getElementById('demo-indicator-dot');
+  
+  const bleActiveChip = document.getElementById('ble-active-chip');
+  const bleActiveName = document.getElementById('ble-active-name');
+  const pairBtn = document.getElementById('pair-esp32-btn');
+  const radioTag = document.getElementById('radio-mode-tag');
+  const gatewayName = document.getElementById('gateway-name');
 
   if (mode === 'DEMO') {
-    demoBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm font-bold bg-primary-container text-on-primary transition-all';
-    demoLabel.textContent = 'DEMO ACTIVE';
-    bleLabel.textContent = 'PAIR ESP32';
-    document.getElementById('radio-mode-tag').textContent = 'SIMULATED LORA SF7';
+    // Demo simulator is ON
+    demoBtn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-label-sm font-bold bg-tertiary-container text-on-tertiary-container border border-tertiary shadow-sm transition-all';
+    demoLabel.textContent = 'DEMO: ACTIVE';
+    demoDot.className = 'w-2 h-2 rounded-full bg-tertiary animate-pulse block';
+    
+    bleActiveChip.classList.add('hidden');
+    bleActiveChip.classList.remove('flex');
+    pairBtn.classList.remove('hidden');
+
+    radioTag.textContent = 'SIMULATED LORA SF7';
+    gatewayName.textContent = 'MOCK-BLE-GATEWAY';
+  } else if (mode === 'HARDWARE_BLE' || (webBleDevice && webBleDevice.gatt.connected)) {
+    // Physical ESP32 Hardware is CONNECTED
+    demoBtn.className = 'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-white bg-surface-container border border-outline-variant/30 transition-all';
+    demoLabel.textContent = 'DEMO: OFF';
+    demoDot.className = 'w-2 h-2 rounded-full bg-outline-variant block';
+
+    const name = devName || (webBleDevice ? webBleDevice.name : 'ESP32 NODE');
+    bleActiveName.textContent = name.toUpperCase();
+    bleActiveChip.classList.remove('hidden');
+    bleActiveChip.classList.add('flex');
+    pairBtn.classList.add('hidden');
+
+    radioTag.textContent = 'PHYSICAL ESP32 BLE';
+    gatewayName.textContent = name;
   } else {
-    demoBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-primary transition-all';
-    demoLabel.textContent = 'START DEMO';
-    bleLabel.textContent = status || 'ESP32 BLE CONNECTED';
-    document.getElementById('radio-mode-tag').textContent = 'PHYSICAL ESP32 BLE';
+    // Demo stopped, no hardware connected
+    demoBtn.className = 'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-label-sm text-on-surface-variant hover:text-white bg-surface-container border border-outline-variant/30 transition-all';
+    demoLabel.textContent = 'DEMO: OFF';
+    demoDot.className = 'w-2 h-2 rounded-full bg-outline-variant block';
+
+    bleActiveChip.classList.add('hidden');
+    bleActiveChip.classList.remove('flex');
+    pairBtn.classList.remove('hidden');
+
+    radioTag.textContent = 'LORA STANDBY';
+    gatewayName.textContent = 'AWAITING ESP32';
   }
 }
 
@@ -823,13 +878,15 @@ function toggleDemoMode() {
   if (currentMode === 'DEMO') {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop_demo' }));
-      showToast('DEMO STOPPED. Ready for ESP32 connection.');
     }
+    setModeUI('DEMO_OFF', 'DEMO STOPPED');
+    showToast('DEMO STOPPED. Ready for ESP32 hardware.');
   } else {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'start_demo' }));
-      showToast('DEMO MODE ACTIVATED');
     }
+    setModeUI('DEMO', 'DEMO ACTIVE');
+    showToast('DEMO SIMULATOR ACTIVATED');
   }
 }
 
@@ -889,27 +946,111 @@ function connectBleDevice(address, name) {
 }
 
 function disconnectHardwareBle() {
+  if (webBleDevice && webBleDevice.gatt.connected) {
+    webBleDevice.gatt.disconnect();
+    webBleDevice = null;
+    webBleTxChar = null;
+    webBleRxChar = null;
+  }
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ action: 'disconnect_ble' }));
-    showToast('BLE DISCONNECTED');
   }
+  setModeUI('DEMO_OFF', 'DISCONNECTED');
+  showToast('ESP32 DISCONNECTED');
 }
 
-// ── Web Bluetooth Direct Fallback ──────────────────────────────
+// ── Web Bluetooth Direct GATT Connection ───────────────────────
 async function connectWebBluetooth() {
   if (!navigator.bluetooth) {
-    alert('Web Bluetooth is only supported in Chrome/Edge over HTTPS or localhost.');
+    alert('Web Bluetooth is supported in Chrome, Edge, and Android Chrome over HTTPS or localhost.');
     return;
   }
   try {
+    document.getElementById('ble-modal-status').textContent = 'Requesting Bluetooth Device...';
+    
+    // Request device supporting NUS service or all devices
     const device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+      filters: [
+        { namePrefix: 'ESP32' },
+        { namePrefix: 'LoRa' },
+        { services: [NUS_SERVICE] }
+      ],
+      optionalServices: [NUS_SERVICE]
+    }).catch(async () => {
+      // Fallback: accept all devices
+      return await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [NUS_SERVICE]
+      });
     });
-    showToast(`WEB BLE CONNECTED: ${device.name}`);
+
+    if (!device) return;
+
+    document.getElementById('ble-modal-status').textContent = `Connecting to ${device.name}...`;
+    webBleDevice = device;
+
+    device.addEventListener('gattserverdisconnected', () => {
+      showToast('ESP32 DISCONNECTED');
+      setModeUI('DEMO_OFF', 'DISCONNECTED');
+    });
+
+    const server = await device.gatt.connect();
+    webBleServer = server;
+
+    // Get Nordic UART Service
+    const service = await server.getPrimaryService(NUS_SERVICE);
+    
+    // Get RX Notification Characteristic (ESP32 -> Web)
+    const rxChar = await service.getCharacteristic(NUS_RX_CHAR);
+    webBleRxChar = rxChar;
+    await rxChar.startNotifications();
+    rxChar.addEventListener('characteristicvaluechanged', (event) => {
+      const value = new TextDecoder().decode(event.target.value);
+      handleIncomingHardwareData(value);
+    });
+
+    // Get TX Characteristic (Web -> ESP32)
+    try {
+      const txChar = await service.getCharacteristic(NUS_TX_CHAR);
+      webBleTxChar = txChar;
+    } catch(e) {
+      console.warn('TX Characteristic not found:', e);
+    }
+
+    // Stop demo simulator on backend
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'stop_demo' }));
+    }
+
+    setModeUI('HARDWARE_BLE', 'CONNECTED', device.name);
     closeBleModal();
+    showToast(`ESP32 CONNECTED: ${device.name}`);
+
   } catch(err) {
-    alert('BLE Selection cancelled or failed: ' + err);
+    console.error('Web Bluetooth Error:', err);
+    document.getElementById('ble-modal-status').textContent = 'Pairing error: ' + err.message;
+    alert('Bluetooth connection failed: ' + err.message);
+  }
+}
+
+function handleIncomingHardwareData(raw) {
+  // Forward to backend WebSocket for persistence & broadcast
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'hardware_packet', raw: raw }));
+  }
+  appendTerminal(raw);
+}
+
+// ── Transmit to ESP32 / Server ─────────────────────────────────
+async function transmitPacket(rawProto) {
+  // Send via Web Bluetooth characteristic if connected directly
+  if (webBleTxChar) {
+    try {
+      const enc = new TextEncoder().encode(rawProto + '\n');
+      await webBleTxChar.writeValueWithoutResponse(enc);
+    } catch(e) {
+      console.warn('Web BLE write error:', e);
+    }
   }
 }
 
@@ -961,11 +1102,18 @@ function setText(id, txt) {
 // ── SOS Broadcast & Strobe Alert ───────────────────────────────
 function triggerSOS() {
   if (!confirm('⚠️ CONFIRM EMERGENCY SOS BROADCAST TO DECENTRALIZED MESH?')) return;
+  const lat = localTelemetry.lat;
+  const lng = localTelemetry.lng;
+  const callsign = document.getElementById('callsign-display').textContent || 'OPERATOR-1';
+  const rawProto = `SOS:${lat.toFixed(5)},${lng.toFixed(5)},HELP:${callsign}`;
+
+  transmitPacket(rawProto);
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       action: 'send_sos',
-      lat: localTelemetry.lat,
-      lng: localTelemetry.lng,
+      lat: lat,
+      lng: lng,
     }));
   }
 }
@@ -988,12 +1136,18 @@ function dismissSOS() {
 function broadcastShelter() {
   const name = prompt('Enter Shelter / Safe Haven Name:', 'SHELTER-DELTA');
   if (!name) return;
+  const lat = localTelemetry.lat;
+  const lng = localTelemetry.lng;
+  const rawProto = `WAYPOINT:${lat.toFixed(5)},${lng.toFixed(5)},SHELTER:${name}`;
+
+  transmitPacket(rawProto);
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       action: 'broadcast_shelter',
       name: name,
-      lat: localTelemetry.lat,
-      lng: localTelemetry.lng,
+      lat: lat,
+      lng: lng,
     }));
   }
 }
@@ -1086,6 +1240,11 @@ function sendChat() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
+  const sender = document.getElementById('callsign-display').textContent || 'OPERATOR-1';
+  const rawProto = `CHAT:${sender}:${text}`;
+  
+  transmitPacket(rawProto);
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ action: 'send_chat', text: text }));
     input.value = '';

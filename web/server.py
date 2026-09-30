@@ -5,6 +5,7 @@ FastAPI + WebSocket backend for the Tactical Mesh Web Dashboard.
 
 - Supports DEMO MODE (MockBLEDevice) & REAL HARDWARE MODE (Bleak BLE / ESP32)
 - BLE Device Scanning and Live Pairing to Nordic UART ESP32 nodes
+- Ingestion of live hardware packets from Web Bluetooth API or Bleak
 - Pushes all parsed events to connected browser clients via WebSocket
 - Handles Decentralized Chat, Tactical SOS strobe alerts, and Shelter broadcasts
 - Persists data to SQLite3 database via MessageStore
@@ -62,7 +63,6 @@ mode = "DEMO"  # "DEMO" or "HARDWARE_BLE"
 mock_device: Optional[MockBLEDevice] = None
 ble_client: Optional[object] = None
 ble_connected_device: Optional[str] = None
-ble_scanning: bool = False
 event_loop: Optional[asyncio.AbstractEventLoop] = None
 
 # Global state sent to newly connected clients
@@ -121,7 +121,7 @@ def broadcast_sync(payload: dict):
 # ── Packet & Event Pipeline ───────────────────────────────────────────────────
 
 def on_incoming_packet(raw: str):
-    """Called for every incoming packet from either MockBLE or real ESP32 BLE."""
+    """Called for every incoming packet from either MockBLE, Bleak, or Web Bluetooth."""
     raw = raw.strip()
     if not raw:
         return
@@ -137,12 +137,12 @@ def on_incoming_packet(raw: str):
         message_store.log_telemetry(event)
         node_tracker.update(event)
         state["telemetry"] = {
-            "lat": event.get("lat", 13.0827),
-            "lng": event.get("lng", 80.2707),
-            "temp": event.get("temp", 28.0),
-            "hum": event.get("hum", 65.0),
-            "smoke": event.get("smoke", 0),
-            "water": event.get("water", 0),
+            "lat": event.get("lat", state["telemetry"]["lat"]),
+            "lng": event.get("lng", state["telemetry"]["lng"]),
+            "temp": event.get("temp", state["telemetry"]["temp"]),
+            "hum": event.get("hum", state["telemetry"]["hum"]),
+            "smoke": event.get("smoke", state["telemetry"]["smoke"]),
+            "water": event.get("water", state["telemetry"]["water"]),
         }
         state["gps_fix"] = True
         state["nodes"] = {k: v.__dict__ if hasattr(v, '__dict__') else v
@@ -251,17 +251,19 @@ def start_demo_mode():
 
 def stop_demo_mode():
     """Stop mock BLE background thread."""
-    global mock_device
+    global mock_device, mode
     if mock_device and mock_device._running:
         mock_device.stop()
         mock_device = None
-    state["ble_status"] = "DEMO STOPPED"
+    mode = "HARDWARE_BLE"
+    state["mode"] = "HARDWARE_BLE"
+    state["ble_status"] = "DEMO STOPPED (HARDWARE MODE)"
     broadcast_sync({
         "type": "mode_change",
-        "mode": mode,
-        "ble_status": "DEMO STOPPED",
+        "mode": "HARDWARE_BLE",
+        "ble_status": state["ble_status"],
     })
-    print("[SERVER] Demo Mode Stopped")
+    print("[SERVER] Demo Mode Stopped - Hardware Ready")
 
 
 async def connect_ble_device(address: str, name: str = "ESP32"):
@@ -274,7 +276,7 @@ async def connect_ble_device(address: str, name: str = "ESP32"):
     mode = "HARDWARE_BLE"
     state["mode"] = "HARDWARE_BLE"
     state["ble_status"] = f"CONNECTING TO {name}…"
-    broadcast_sync({"type": "ble_status", "status": state["ble_status"]})
+    broadcast_sync({"type": "ble_status", "status": state["ble_status"], "mode": "HARDWARE_BLE"})
 
     try:
         def on_disconnect(client):
@@ -284,6 +286,7 @@ async def connect_ble_device(address: str, name: str = "ESP32"):
             broadcast_sync({
                 "type": "ble_status",
                 "status": "DISCONNECTED",
+                "mode": "HARDWARE_BLE",
                 "connected": False
             })
 
@@ -305,6 +308,7 @@ async def connect_ble_device(address: str, name: str = "ESP32"):
         broadcast_sync({
             "type": "ble_status",
             "status": state["ble_status"],
+            "mode": "HARDWARE_BLE",
             "connected": True,
             "device": {"name": name, "address": address}
         })
@@ -314,7 +318,7 @@ async def connect_ble_device(address: str, name: str = "ESP32"):
     except Exception as e:
         print(f"[BLE CONNECTION ERROR] {e}")
         state["ble_status"] = f"FAILED: {e}"
-        broadcast_sync({"type": "ble_status", "status": state["ble_status"], "connected": False})
+        broadcast_sync({"type": "ble_status", "status": state["ble_status"], "mode": "HARDWARE_BLE", "connected": False})
         return {"success": False, "error": str(e)}
 
 
@@ -364,7 +368,7 @@ async def api_start_demo():
 @app.post("/api/mode/demo/stop")
 async def api_stop_demo():
     stop_demo_mode()
-    return {"status": "ok", "mode": mode}
+    return {"status": "ok", "mode": "HARDWARE_BLE"}
 
 
 @app.get("/api/ble/scan")
@@ -409,7 +413,7 @@ async def api_disconnect_ble():
         ble_connected_device = None
     state["ble_status"] = "DISCONNECTED"
     state["ble_device_name"] = None
-    broadcast_sync({"type": "ble_status", "status": "DISCONNECTED", "connected": False})
+    broadcast_sync({"type": "ble_status", "status": "DISCONNECTED", "mode": "HARDWARE_BLE", "connected": False})
     return {"status": "ok"}
 
 
@@ -434,7 +438,14 @@ async def websocket_endpoint(ws: WebSocket):
             data = json.loads(raw_text)
             action = data.get("action")
 
-            if action == "send_chat":
+            if action == "hardware_packet":
+                # Ingest raw packet from Web Bluetooth client
+                raw_pkt = data.get("raw", "")
+                if raw_pkt:
+                    print(f"[WEB-BLE RX <- ESP32] {raw_pkt}")
+                    on_incoming_packet(raw_pkt)
+
+            elif action == "send_chat":
                 text = data.get("text", "").strip()
                 if text:
                     sender = state["callsign"]
@@ -451,13 +462,11 @@ async def websocket_endpoint(ws: WebSocket):
                     await transmit_to_hardware(raw_proto)
 
             elif action == "send_sos":
-                # Current GPS location or sensor lat/lng
                 lat = float(data.get("lat") or state["telemetry"].get("lat", 13.0827))
                 lng = float(data.get("lng") or state["telemetry"].get("lng", 80.2707))
                 callsign = state["callsign"]
                 raw_proto = f"SOS:{lat:.5f},{lng:.5f},HELP:{callsign}"
                 
-                # Broadcast SOS alert with strobe triggers
                 sos_evt = {
                     "type": "sos",
                     "sender": callsign,
@@ -487,7 +496,6 @@ async def websocket_endpoint(ws: WebSocket):
                 }
                 state["waypoints"].append(wp)
                 
-                # Also log as a system message in chat
                 sys_msg = {
                     "sender": "MESH-BROADCAST",
                     "text": f"🛡️ SHELTER DEPLOYED: {shelter_name} at ({lat:.4f}, {lng:.4f})",
@@ -537,7 +545,7 @@ async def websocket_endpoint(ws: WebSocket):
                     await ble_client.disconnect()
                 state["ble_status"] = "DISCONNECTED"
                 state["ble_device_name"] = None
-                await _broadcast({"type": "ble_status", "status": "DISCONNECTED", "connected": False})
+                await _broadcast({"type": "ble_status", "status": "DISCONNECTED", "mode": "HARDWARE_BLE", "connected": False})
 
     except WebSocketDisconnect:
         pass
